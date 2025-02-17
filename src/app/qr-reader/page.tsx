@@ -1,87 +1,89 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5QrcodeScanner, Html5Qrcode } from 'html5-qrcode';
 import { ArrowPathIcon } from '@heroicons/react/24/solid';
 
 export default function QRReader() {
   const [scannedCode, setScannedCode] = useState<string>('');
-  const [scanner, setScanner] = useState<Html5QrcodeScanner | null>(null);
+  const [scanner, setScanner] = useState<Html5Qrcode | null>(null);
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [cameraError, setCameraError] = useState<string>('');
 
-  // カメラのアクセス許可を要求する
   useEffect(() => {
-    const requestCameraPermission = async () => {
+    const initializeScanner = async () => {
       try {
-        await navigator.mediaDevices.getUserMedia({ 
-          video: { 
-            facingMode: { exact: 'environment' } // 背面カメラを指定
-          } 
+        // カメラのアクセス許可を要求
+        await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { exact: 'environment' }
+          }
         });
-        // 許可された後にカメラを停止
-        const tracks = await navigator.mediaDevices.getUserMedia({ video: true });
-        tracks.getTracks().forEach(track => track.stop());
+
+        // Html5Qrcodeを初期化
+        const html5QrCode = new Html5Qrcode('reader');
+        setScanner(html5QrCode);
+
+        // カメラを起動してスキャンを開始
+        await html5QrCode.start(
+          { facingMode: { exact: 'environment' } },
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+          },
+          (decodedText) => {
+            setScannedCode(decodedText);
+            setIsScanning(false);
+            html5QrCode.pause(true);
+          },
+          (error) => {
+            console.warn(error);
+          }
+        );
+
+        setIsScanning(true);
         setCameraError('');
       } catch (error) {
-        console.error('カメラのアクセス許可が拒否されました:', error);
+        console.error('カメラの初期化エラー:', error);
         setCameraError('カメラへのアクセスが許可されていません。ブラウザの設定を確認してください。');
       }
     };
 
-    requestCameraPermission();
-  }, []);
+    initializeScanner();
 
-  useEffect(() => {
-    const qrScanner = new Html5QrcodeScanner(
-      'reader',
-      {
-        qrbox: {
-          width: 250,
-          height: 250,
-        },
-        fps: 10,
-        videoConstraints: {
-          facingMode: { exact: 'environment' }, // 背面カメラを指定
-        },
-      },
-      false
-    );
-
-    setIsScanning(true);
-    
-    qrScanner.render(
-      (decodedText) => {
-        setScannedCode(decodedText);
-        setIsScanning(false);
-        try {
-          qrScanner.pause(true);
-        } catch (error) {
-          console.warn('Scanner pause failed:', error);
-        }
-      },
-      (error) => {
-        console.warn(error);
-      }
-    );
-
-    setScanner(qrScanner);
-
+    // クリーンアップ
     return () => {
-      if (qrScanner) {
-        qrScanner.clear();
+      if (scanner) {
+        scanner.stop();
       }
     };
   }, []);
 
-  const handleReset = () => {
+
+
+  const handleReset = async () => {
     setScannedCode('');
     if (scanner && !isScanning) {
       try {
-        scanner.resume();
+        await scanner.start(
+          { facingMode: { exact: 'environment' } },
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+          },
+          (decodedText) => {
+            setScannedCode(decodedText);
+            setIsScanning(false);
+            scanner.pause(true);
+          },
+          (error) => {
+            console.warn(error);
+          }
+        );
         setIsScanning(true);
       } catch (error) {
-        console.warn('Scanner resume failed:', error);
+        console.warn('Scanner restart failed:', error);
+        setCameraError('カメラの再起動に失敗しました。ページを更新してください。');
       }
     }
   };
