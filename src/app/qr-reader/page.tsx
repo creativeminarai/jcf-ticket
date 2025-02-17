@@ -8,6 +8,29 @@ export default function QRReader() {
   const [scannedCode, setScannedCode] = useState<string>('');
   const [scanner, setScanner] = useState<Html5QrcodeScanner | null>(null);
   const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [cameraError, setCameraError] = useState<string>('');
+
+  // カメラのアクセス許可を要求する
+  useEffect(() => {
+    const requestCameraPermission = async () => {
+      try {
+        await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            facingMode: { exact: 'environment' } // 背面カメラを指定
+          } 
+        });
+        // 許可された後にカメラを停止
+        const tracks = await navigator.mediaDevices.getUserMedia({ video: true });
+        tracks.getTracks().forEach(track => track.stop());
+        setCameraError('');
+      } catch (error) {
+        console.error('カメラのアクセス許可が拒否されました:', error);
+        setCameraError('カメラへのアクセスが許可されていません。ブラウザの設定を確認してください。');
+      }
+    };
+
+    requestCameraPermission();
+  }, []);
 
   useEffect(() => {
     const qrScanner = new Html5QrcodeScanner(
@@ -18,6 +41,9 @@ export default function QRReader() {
           height: 250,
         },
         fps: 10,
+        videoConstraints: {
+          facingMode: { exact: 'environment' }, // 背面カメラを指定
+        },
       },
       false
     );
@@ -70,6 +96,11 @@ export default function QRReader() {
                 <h2 className="text-2xl font-bold mb-8 text-center text-gray-800">
                   QRコードリーダー
                 </h2>
+                {cameraError && (
+                  <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg dark:bg-red-200 dark:text-red-800" role="alert">
+                    {cameraError}
+                  </div>
+                )}
                 <div id="reader" className="w-full"></div>
                 {scannedCode && (
                   <div className="mt-4">
