@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 
 interface CoffeeHistory {
   storeName: string;
@@ -107,7 +108,7 @@ export default function TicketPage() {
       {/* ヘッダー */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
-          <a href="/" className="block">
+          <Link href="/" className="block">
             <Image
               className="mx-auto"
               src="/logo.png"
@@ -116,7 +117,7 @@ export default function TicketPage() {
               height={50}
               priority
             />
-          </a>
+          </Link>
         </div>
       </header>
 
