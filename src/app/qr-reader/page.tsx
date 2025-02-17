@@ -11,14 +11,21 @@ export default function QRReader() {
   const [cameraError, setCameraError] = useState<string>('');
 
   useEffect(() => {
+    let currentScanner: Html5Qrcode | null = null;
+
     const initializeScanner = async (): Promise<void> => {
       try {
+        if (!document.getElementById('reader')) {
+          console.error('Reader element not found');
+          return;
+        }
+
         // カメラの初期化を試みる
-        const html5QrCode = new Html5Qrcode('reader');
-        setScanner(html5QrCode);
+        currentScanner = new Html5Qrcode('reader');
+        setScanner(currentScanner);
 
         // カメラを起動してスキャンを開始
-        await html5QrCode.start(
+        await currentScanner.start(
           { facingMode: 'environment' },
           {
             fps: 10,
@@ -27,10 +34,10 @@ export default function QRReader() {
           (decodedText: string) => {
             setScannedCode(decodedText);
             setIsScanning(false);
-            html5QrCode.pause(true);
+            currentScanner?.pause(true);
           },
           (error: string) => {
-            console.warn(error);
+            console.warn('QRスキャンエラー:', error);
           }
         );
 
@@ -38,7 +45,11 @@ export default function QRReader() {
         setCameraError('');
       } catch (error) {
         console.error('カメラの初期化エラー:', error);
-        setCameraError('カメラへのアクセスが許可されていません。ブラウザの設定を確認してください。');
+        if (error instanceof Error && error.message.includes('NotAllowedError')) {
+          setCameraError('カメラへのアクセスが許可されていません。ブラウザの設定を確認してください。');
+        } else {
+          setCameraError('カメラの初期化中にエラーが発生しました。ページを更新してください。');
+        }
       }
     };
 
@@ -46,36 +57,33 @@ export default function QRReader() {
 
     // クリーンアップ
     return () => {
-      if (scanner) {
-        scanner.stop().catch(console.error);
+      if (currentScanner) {
+        currentScanner.stop().catch((error) => {
+          console.error('Scanner cleanup error:', error);
+        });
       }
     };
-  }, [scanner]);
+  }, []); // 依存配列を空にする
 
   const handleReset = async (): Promise<void> => {
-    setScannedCode('');
-    if (scanner && !isScanning) {
-      try {
-        await scanner.start(
-          { facingMode: 'environment' },
-          {
-            fps: 10,
-            qrbox: { width: 250, height: 250 },
-          },
-          (decodedText: string) => {
-            setScannedCode(decodedText);
-            setIsScanning(false);
-            scanner.pause(true);
-          },
-          (error: string) => {
-            console.warn(error);
-          }
-        );
-        setIsScanning(true);
-      } catch (error) {
-        console.warn('Scanner restart failed:', error);
-        setCameraError('カメラの再起動に失敗しました。ページを更新してください。');
+    try {
+      setScannedCode('');
+      setCameraError('');
+
+      if (!scanner) {
+        throw new Error('スキャナーが初期化されていません');
       }
+
+      if (isScanning) {
+        await scanner.pause(true);
+      }
+
+      await scanner.resume();
+      
+      setIsScanning(true);
+    } catch (error) {
+      console.error('再スキャン時のエラー:', error);
+      setCameraError('カメラの再起動に失敗しました。ページを更新してください。');
     }
   };
 
