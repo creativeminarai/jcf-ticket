@@ -62,7 +62,8 @@ const events: Event[] = [
   },
 ];
 
-export default function TicketPage() {
+// クライアントコンポーネントとして分離
+function TicketContent() {
   const searchParams = useSearchParams();
   const eventId = Number(searchParams.get('event'));
   const event = events.find(e => e.id === eventId) ?? events[0];
@@ -78,6 +79,21 @@ export default function TicketPage() {
     setIsLoading(false);
   };
 
+  return (
+    <div className="px-4 py-6 sm:px-0 space-y-8">
+      <EventInfo event={event} />
+      <DestinyCoffee
+        issuedShop={issuedShop}
+        isLoading={isLoading}
+        onIssueTicket={handleIssueTicket}
+      />
+      <TicketCount />
+      <CoffeeHistory histories={dummyHistories} />
+    </div>
+  );
+}
+
+export default function TicketPage() {
   return (
     <div className="min-h-screen bg-white">
       {/* ヘッダー */}
@@ -96,29 +112,20 @@ export default function TicketPage() {
         </div>
       </header>
 
-      <Suspense fallback={
-        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          <div className="px-4 py-6 sm:px-0 space-y-8">
-            <div className="animate-pulse space-y-4">
-              <div className="h-8 bg-gray-200 rounded w-3/4"></div>
-              <div className="h-32 bg-gray-200 rounded"></div>
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <Suspense 
+          fallback={
+            <div className="px-4 py-6 sm:px-0 space-y-8">
+              <div className="animate-pulse space-y-4">
+                <div className="h-8 bg-gray-200 rounded w-3/4"></div>
+                <div className="h-32 bg-gray-200 rounded"></div>
+              </div>
             </div>
-          </div>
-        </div>
-      }>
-        <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          <div className="px-4 py-6 sm:px-0 space-y-8">
-            <EventInfo event={event} />
-            <DestinyCoffee
-              issuedShop={issuedShop}
-              isLoading={isLoading}
-              onIssueTicket={handleIssueTicket}
-            />
-            <TicketCount />
-            <CoffeeHistory histories={dummyHistories} />
-          </div>
-        </main>
-      </Suspense>
+          }
+        >
+          <TicketContent />
+        </Suspense>
+      </main>
     </div>
   );
 }
