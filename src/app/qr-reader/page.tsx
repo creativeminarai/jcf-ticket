@@ -57,11 +57,19 @@ export default function QRReader() {
 
     // クリーンアップ
     return () => {
-      if (currentScanner) {
-        currentScanner.stop().catch((error) => {
-          console.error('Scanner cleanup error:', error);
-        });
-      }
+      const cleanup = async () => {
+        if (currentScanner) {
+          try {
+            await currentScanner.pause(true);
+            await currentScanner.stop();
+          } catch (error: unknown) {
+            console.error('Scanner cleanup error:', error);
+          }
+        }
+      };
+      cleanup().catch((error: unknown) => {
+        console.error('Cleanup function error:', error);
+      });
     };
   }, []); // 依存配列を空にする
 
