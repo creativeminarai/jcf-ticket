@@ -13,24 +13,18 @@ export default function QRReader() {
   useEffect(() => {
     const initializeScanner = async () => {
       try {
-        // カメラのアクセス許可を要求
-        await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { exact: 'environment' }
-          }
-        });
-
-        // Html5Qrcodeを初期化
+        // カメラの初期化を試みる
         const html5QrCode = new Html5Qrcode('reader');
         setScanner(html5QrCode);
 
-        // カメラを起動してスキャンを開始
-        await html5QrCode.start(
-          { facingMode: { exact: 'environment' } },
-          {
-            fps: 10,
-            qrbox: { width: 250, height: 250 },
-          },
+        // まず背面カメラでの起動を試みる
+        try {
+          await html5QrCode.start(
+            { facingMode: 'environment' }, // exactを削除してより柔軟に
+            {
+              fps: 10,
+              qrbox: { width: 250, height: 250 },
+            },
           (decodedText) => {
             setScannedCode(decodedText);
             setIsScanning(false);
@@ -66,7 +60,7 @@ export default function QRReader() {
     if (scanner && !isScanning) {
       try {
         await scanner.start(
-          { facingMode: { exact: 'environment' } },
+          { facingMode: 'environment' },
           {
             fps: 10,
             qrbox: { width: 250, height: 250 },
