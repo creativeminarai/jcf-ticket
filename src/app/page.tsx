@@ -1,101 +1,133 @@
+"use client";
+
 import Image from "next/image";
+import { useState } from "react";
+
+interface Event {
+  id: number;
+  title: string;
+  date: string;
+  price: string;
+  isPurchased: boolean;
+  theme: string;
+  imageUrl: string;
+}
+
+const events: Event[] = [
+  {
+    id: 1,
+    title: "Japan Coffee Festival 2025 in 滋賀県日野町",
+    date: "2025/3/8-9",
+    price: "当日券（¥1,800）",
+    isPurchased: false,
+    theme: "850年続く日野祭に華を添える16の曳山",
+    imageUrl: "/hino.jpg"
+  },
+  {
+    id: 2,
+    title: "Japan Coffee Festival 2025 in 鳥取県倉吉市",
+    date: "2025/3/22-23",
+    price: "当日券（¥1,800）",
+    isPurchased: false,
+    theme: "花よりだんご",
+    imageUrl: "/kurayoshi.png"
+  },
+];
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [localEvents, setLocalEvents] = useState<Event[]>(events);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const handlePurchase = (id: number) => {
+    setLocalEvents(prevEvents =>
+      prevEvents.map(event =>
+        event.id === id ? { ...event, isPurchased: true } : event
+      )
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-white">
+      {/* ヘッダー */}
+      <header className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
+          <Image
+            className="mx-auto"
+            src="/logo.png"
+            alt="Japan Coffee Festival Logo"
+            width={260}
+            height={65}
+            priority
+          />
+        </div>
+      </header>
+
+      {/* メインコンテンツ */}
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {localEvents.map((event) => (
+              <div
+                key={event.id}
+                className="bg-white overflow-hidden shadow-lg rounded-lg"
+              >
+                <div className="p-6">
+                 <div>
+                   <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                     {event.title}
+                   </h3>
+                   <p className="text-sm text-gray-600 mb-3 border-b border-gray-200 pb-3">
+                     テーマ「{event.theme}」
+                   </p>
+                   <div className="relative w-full h-64 mb-4">
+                     <Image
+                       src={event.imageUrl}
+                       alt={event.title}
+                       fill
+                       className="object-contain rounded-sm bg-gray-50"
+                     />
+                   </div>
+                 </div>
+                 <div className="space-y-2">
+                    <p className="text-sm text-gray-600">開催日: {event.date}</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {event.price}
+                    </p>
+                  </div>
+                  <div className="mt-6 space-y-3">
+                    {!event.isPurchased ? (
+                      <button
+                        onClick={() => handlePurchase(event.id)}
+                        className="w-full text-white px-4 py-2 rounded-md hover:opacity-90 transition-colors font-noto-serif font-medium"
+                        style={{ background: 'linear-gradient(135deg, hsl(222.2, 47.4%, 11.20%), hsl(222.2, 47.4%, 15.20%))' }}
+                      >
+                        購入する
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          disabled
+                          className="w-full text-muted-foreground px-4 py-2 rounded-md cursor-not-allowed font-noto-serif font-medium"
+                          style={{ background: 'linear-gradient(135deg, hsl(210, 40%, 96.1%), hsl(210, 40%, 94.1%))' }}
+                        >
+                          購入済み
+                        </button>
+                        <a href={`/ticket?event=${event.id}`}>
+                          <button
+                            className="w-full text-white px-4 py-2 rounded-md hover:opacity-90 transition-colors font-noto-serif font-medium"
+                            style={{ background: 'linear-gradient(135deg, hsl(173, 58%, 39%), hsl(173, 65%, 42%))' }}
+                          >
+                            チケット発行へ
+                          </button>
+                        </a>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }
