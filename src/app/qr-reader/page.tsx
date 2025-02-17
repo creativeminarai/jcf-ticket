@@ -11,26 +11,25 @@ export default function QRReader() {
   const [cameraError, setCameraError] = useState<string>('');
 
   useEffect(() => {
-    const initializeScanner = async () => {
+    const initializeScanner = async (): Promise<void> => {
       try {
         // カメラの初期化を試みる
         const html5QrCode = new Html5Qrcode('reader');
         setScanner(html5QrCode);
 
-        // まず背面カメラでの起動を試みる
-        try {
-          await html5QrCode.start(
-            { facingMode: 'environment' }, // exactを削除してより柔軟に
-            {
-              fps: 10,
-              qrbox: { width: 250, height: 250 },
-            },
-          (decodedText) => {
+        // カメラを起動してスキャンを開始
+        await html5QrCode.start(
+          { facingMode: 'environment' },
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+          },
+          (decodedText: string) => {
             setScannedCode(decodedText);
             setIsScanning(false);
             html5QrCode.pause(true);
           },
-          (error) => {
+          (error: string) => {
             console.warn(error);
           }
         );
@@ -48,14 +47,12 @@ export default function QRReader() {
     // クリーンアップ
     return () => {
       if (scanner) {
-        scanner.stop();
+        scanner.stop().catch(console.error);
       }
     };
   }, [scanner]);
 
-
-
-  const handleReset = async () => {
+  const handleReset = async (): Promise<void> => {
     setScannedCode('');
     if (scanner && !isScanning) {
       try {
@@ -65,12 +62,12 @@ export default function QRReader() {
             fps: 10,
             qrbox: { width: 250, height: 250 },
           },
-          (decodedText) => {
+          (decodedText: string) => {
             setScannedCode(decodedText);
             setIsScanning(false);
             scanner.pause(true);
           },
-          (error) => {
+          (error: string) => {
             console.warn(error);
           }
         );
