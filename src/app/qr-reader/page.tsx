@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Html5QrcodeScanner, Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { ArrowPathIcon } from '@heroicons/react/24/solid';
 
 export default function QRReader() {
@@ -57,7 +57,7 @@ export default function QRReader() {
         scanner.stop();
       }
     };
-  }, []);
+  }, [scanner]);
 
 
 
