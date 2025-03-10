@@ -19,7 +19,8 @@ const dummyHistories = [
         coffeeName: "エチオピア",
         ticketCount: 1,
         exchangeDate: "15:30",
-        imageUrl: "/sample_sp.jpg"
+        imageUrl: "/sample_sp.jpg",
+        number: 5
       }
     ]
   },
@@ -31,19 +32,59 @@ const dummyHistories = [
         coffeeName: "点滴コーヒー",
         ticketCount: 2,
         exchangeDate: "14:20",
-        imageUrl: "/sample_akamatsu.jpg"
+        imageUrl: "/sample_akamatsu.jpg",
+        number: 8
       }
     ]
   }
 ];
 
-const dummyShop: Shop = {
-  name: "世界ふるまい珈琲協会",
-  coffeeName: "いつかはあなたもふるまい珈琲",
-  description: "",
-  coffeeIntro: "珈琲に「空 性 」があればその楽しみも無限に広がりますね。",
-  imageUrl: "/sample.jpg"
-};
+// コーヒーショップのデータ（くじ引きで選ばれる候補）
+const coffeeShops: Shop[] = [
+  {
+    name: "世界ふるまい珈琲協会",
+    coffeeName: "いつかはあなたもふるまい珈琲",
+    description: "",
+    coffeeIntro: "珈琲に「空 性 」があればその楽しみも無限に広がりますね。",
+    imageUrl: "/sample.jpg",
+    number: 1
+  },
+  {
+    name: "アカマツ珈琲",
+    coffeeName: "点滴コーヒー",
+    description: "",
+    coffeeIntro: "丁寧に淹れた一杯をお楽しみください。",
+    imageUrl: "/sample_akamatsu.jpg",
+    number: 2
+  },
+  {
+    name: "ショッピングプラザコーヒー",
+    coffeeName: "エチオピア",
+    description: "",
+    coffeeIntro: "バランスの取れた味わいと芳醇な香りが特徴です。",
+    imageUrl: "/sample_sp.jpg",
+    number: 3
+  },
+  {
+    name: "山の上珈琲店",
+    coffeeName: "ブルーマウンテン",
+    description: "",
+    coffeeIntro: "最高級の豆を使用した贅沢な一杯をどうぞ。",
+    imageUrl: "/sample.jpg",
+    number: 4
+  },
+  {
+    name: "朝日珈琲",
+    coffeeName: "モーニングブレンド",
+    description: "",
+    coffeeIntro: "爽やかな朝を迎えるのにぴったりの一杯です。",
+    imageUrl: "/sample_akamatsu.jpg",
+    number: 5
+  }
+];
+
+// デフォルトのダミーショップ（未使用）
+const dummyShop: Shop = coffeeShops[0];
 
 const events: Event[] = [
   {
@@ -75,7 +116,11 @@ function TicketContent() {
     setIsLoading(true);
     // 実際のAPIコールをシミュレート
     await new Promise(resolve => setTimeout(resolve, 2000));
-    setIssuedShop(dummyShop);
+    
+    // ランダムにコーヒーショップを選択
+    const randomIndex = Math.floor(Math.random() * coffeeShops.length);
+    setIssuedShop(coffeeShops[randomIndex]);
+    
     setIsLoading(false);
   };
 
@@ -86,6 +131,7 @@ function TicketContent() {
         issuedShop={issuedShop}
         isLoading={isLoading}
         onIssueTicket={handleIssueTicket}
+        coffeeShops={coffeeShops}
       />
       <TicketCount />
       <CoffeeHistory histories={dummyHistories} />

@@ -4,6 +4,7 @@ export interface CoffeeHistory {
   ticketCount: number;
   exchangeDate: string;
   imageUrl: string;
+  number: number; // 店舗の番号
 }
 
 export interface HistoryGroup {
@@ -25,4 +26,5 @@ export interface Shop {
   description: string;
   coffeeIntro: string;
   imageUrl: string;
+  number: number;
 }

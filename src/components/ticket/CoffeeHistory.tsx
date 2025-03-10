@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import { HistoryGroup } from '@/types/ticket';
+import { CoffeeStainNumber } from '@/components/ui/CoffeeStainNumber';
 
 interface CoffeeHistoryProps {
   histories: HistoryGroup[];
@@ -39,7 +40,10 @@ export function CoffeeHistory({ histories }: CoffeeHistoryProps) {
                     </div>
                     <div className="flex-1">
                       <div className="border-b border-gray-200 pb-2 mb-2">
-                        <h3 className="font-semibold text-gray-900">{history.storeName}</h3>
+                        <div className="flex items-center gap-2">
+                          <CoffeeStainNumber number={history.number} size={48} />
+                          <h3 className="font-semibold text-gray-900">{history.storeName}</h3>
+                        </div>
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">

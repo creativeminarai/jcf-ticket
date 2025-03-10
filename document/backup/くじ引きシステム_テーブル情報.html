@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>運命くじシステム データベース設計</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            margin: 20px;
+            background-color: #f8f9fa;
+            color: #333;
+            font-size: 13px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            font-size: 1.6rem;
+        }
+        
+        .description {
+            background-color: #e7f5ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            border-left: 5px solid #3498db;
+            font-size: 0.9rem;
+        }
+        
+        .description p {
+            margin-bottom: 8px;
+        }
+        
+        .er-diagram {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .entity {
+            background-color: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid #ddd;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+        }
+        
+        .entity:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.15);
+        }
+        
+        .entity-header {
+            background-color: #3498db;
+            color: white;
+            padding: 10px;
+            font-weight: bold;
+            text-align: center;
+            font-size: 0.95rem;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+        
+        .entity-content {
+            padding: 0;
+        }
+        
+        .attributes {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .attribute {
+            padding: 8px 12px;
+            border-bottom: 1px solid #eee;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+        }
+        
+        .attribute:last-child {
+            border-bottom: none;
+        }
+        
+        .primary-key {
+            font-weight: bold;
+            background-color: #ffecec;
+        }
+        
+        .primary-key:before {
+            content: "🔑";
+            margin-right: 6px;
+            font-size: 11px;
+        }
+        
+        .foreign-key {
+            background-color: #e6f7ff;
+        }
+        
+        .foreign-key:before {
+            content: "🔗";
+            margin-right: 6px;
+            font-size: 11px;
+        }
+        
+        .relationship-diagram {
+            margin-top: 30px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid #ddd;
+        }
+        
+        .relationship-title {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 8px;
+            font-size: 1.1rem;
+        }
+        
+        .relationship-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+            gap: 12px;
+        }
+        
+        .relationship {
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            padding: 12px;
+            border-left: 4px solid #3498db;
+            transition: background-color 0.2s;
+            position: relative;
+            font-size: 0.85rem;
+        }
+        
+        .relationship:hover {
+            background-color: #e7f5ff;
+        }
+        
+        .relationship-type {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            font-size: 0.7rem;
+            background-color: #3498db;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 12px;
+        }
+        
+        .data-type {
+            color: #6c757d;
+            font-size: 0.7rem;
+            background-color: #f0f0f0;
+            padding: 2px 5px;
+            border-radius: 3px;
+            margin-right: 6px;
+            min-width: 45px;
+            text-align: center;
+        }
+        
+        .jp-name {
+            color: #2d3436;
+            font-weight: 500;
+            margin-right: 6px;
+            flex: 1;
+        }
+        
+        .field-name {
+            color: #0984e3;
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+        
+        .table-group {
+            margin-bottom: 25px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            background-color: #fff;
+        }
+        
+        .group-title {
+            margin-top: 0;
+            margin-bottom: 12px;
+            color: #2c3e50;
+            font-size: 1.1rem;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 8px;
+        }
+        
+        .navigation {
+            position: sticky;
+            top: 0;
+            background-color: #fff;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+        
+        .nav-links {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+        }
+        
+        .nav-link {
+            padding: 6px 12px;
+            margin: 4px;
+            background-color: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            transition: background-color 0.2s;
+        }
+        
+        .nav-link:hover {
+            background-color: #2980b9;
+        }
+        
+        .table-connection {
+            margin: 15px 0;
+            padding: 12px;
+            background-color: #f1f9ff;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+            font-size: 0.9rem;
+        }
+        
+        .connection-title {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #2c3e50;
+        }
+        
+        .connection-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+        
+        .connection-entity {
+            background-color: #fff;
+            padding: 6px 12px;
+            border-radius: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            font-size: 0.8rem;
+        }
+        
+        .connection-arrow {
+            display: flex;
+            align-items: center;
+            color: #7f8c8d;
+            font-size: 16px;
+        }
+
+        /* テーブル説明 */
+        .table-description {
+            margin-top: 8px;
+            padding: 8px 12px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            font-size: 0.8rem;
+        }
+        
+        .table-description-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #2c3e50;
+            font-size: 0.85rem;
+        }
+
+        /* スクロールトップボタン */
+        .scroll-top {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #3498db;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            text-decoration: none;
+            font-size: 18px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s;
+        }
+        
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* 目次 */
+        .toc {
+            position: fixed;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: white;
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            font-size: 0.8rem;
+            display: none;
+        }
+        
+        @media (min-width: 1400px) {
+            .toc {
+                display: block;
+            }
+        }
+        
+        .toc-title {
+            font-weight: bold;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        
+        .toc-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .toc-item {
+            margin-bottom: 5px;
+        }
+        
+        .toc-link {
+            display: block;
+            padding: 4px 8px;
+            color: #333;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+        
+        .toc-link:hover {
+            background-color: #f1f9ff;
+            color: #3498db;
+        }
+        
+        /* アニメーション */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .table-group {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+        
+        .table-group:nth-child(2) {
+            animation-delay: 0.1s;
+        }
+        
+        .table-group:nth-child(3) {
+            animation-delay: 0.2s;
+        }
+        
+        /* 印刷用スタイル */
+        @media print {
+            .navigation, .toc, .scroll-top {
+                display: none;
+            }
+            
+            body {
+                background-color: white;
+            }
+            
+            .table-group, .relationship-diagram {
+                break-inside: avoid;
+                box-shadow: none;
+                border: 1px solid #ddd;
+            }
+            
+            .entity {
+                box-shadow: none;
+                border: 1px solid #ddd;
+            }
+        }
+        
+        /* レスポンシブ調整 */
+        @media (max-width: 768px) {
+            .er-diagram {
+                grid-template-columns: 1fr;
+            }
+            
+            .relationship-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-links {
+                flex-direction: column;
+            }
+            
+            .connection-details {
+                flex-direction: column;
+            }
+            
+            .connection-arrow {
+                transform: rotate(90deg);
+            }
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const scrollTopBtn = document.getElementById('scrollTop');
+            
+            if (scrollTopBtn) {
+                window.addEventListener('scroll', function() {
+                    if (window.scrollY > 300) {
+                        scrollTopBtn.classList.add('visible');
+                    } else {
+                        scrollTopBtn.classList.remove('visible');
+                    }
+                });
+                
+                scrollTopBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                });
+            }
+
+            // タブ機能
+            const tocLinks = document.querySelectorAll('.toc-link');
+            const sections = document.querySelectorAll('.table-group, .relationship-diagram');
+            
+            function highlightActiveSection() {
+                let currentSection = '';
+                
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    if (scrollY >= sectionTop - 100) {
+                        currentSection = '#' + section.getAttribute('id');
+                    }
+                });
+                
+                tocLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === currentSection) {
+                        link.classList.add('active');
+                    }
+                });
+            }
+            
+            window.addEventListener('scroll', highlightActiveSection);
+        });
+    </script>
+</head>
+<body>
+    <!-- スクロールトップボタン -->
+    <a href="#" class="scroll-top" id="scrollTop">↑</a>
+    
+    <!-- 目次 -->
+    <div class="toc">
+        <div class="toc-title">目次</div>
+        <ul class="toc-list">
+            <li class="toc-item"><a href="#core-tables" class="toc-link">コアテーブル</a></li>
+            <li class="toc-item"><a href="#user-tables" class="toc-link">ユーザーテーブル</a></li>
+            <li class="toc-item"><a href="#system-tables" class="toc-link">システム設定</a></li>
+            <li class="toc-item"><a href="#relationships" class="toc-link">テーブル間の関係</a></li>
+        </ul>
+    </div>
+    
+    <div class="container">
+        <h1>運命くじシステム データベース設計</h1>
+        
+        <div class="description">
+            <p>このER図は、比重に基づく運命くじシステムのデータベース設計を表しています。不要テーブルを省略したシンプルな構造です。</p>
+            <p>主キー（PK）は🔑アイコンで、外部キー（FK）は🔗アイコンで示されています。</p>
+        </div>
+
+        <div class="navigation">
+            <div class="nav-links">
+                <a href="#core-tables" class="nav-link">コアテーブル</a>
+                <a href="#user-tables" class="nav-link">ユーザーテーブル</a>
+                <a href="#system-tables" class="nav-link">システム設定</a>
+                <a href="#relationships" class="nav-link">テーブル間の関係</a>
+            </div>
+        </div>
+        
+        <div id="core-tables" class="table-group">
+            <h2 class="group-title">コアテーブル（バッチとチケット管理）</h2>
+            
+            <div class="table-connection">
+                <div class="connection-title">主要テーブル間の関係</div>
+                <div class="connection-details">
+                    <div class="connection-entity">出店者 (COFFEESHOP)</div>
+                    <div class="connection-arrow">→</div>
+                    <div class="connection-entity">運命チケット (FATE_TICKETS)</div>
+                    <div class="connection-arrow">←</div>
+                    <div class="connection-entity">運命バッチ (FATE_BATCHES)</div>
+                </div>
+            </div>
+            
+            <div class="er-diagram">
+                <!-- 出店者テーブル -->
+                <div class="entity">
+                    <div class="entity-header">出店者 (COFFEESHOP)</div>
+                    <div class="entity-content">
+                        <ul class="attributes">
+                            <li class="attribute primary-key">
+                                <span class="data-type">varchar</span> 
+                                <span class="jp-name">出店者ID</span>
+                                <span class="field-name">coffeeshopId</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">varchar</span> 
+                                <span class="jp-name">出店者名</span>
+                                <span class="field-name">coffeeshopName</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">int</span> 
+                                <span class="jp-name">比重</span>
+                                <span class="field-name">weight</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">boolean</span> 
+                                <span class="jp-name">有効フラグ</span>
+                                <span class="field-name">active</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">作成日時</span>
+                                <span class="field-name">createdAt</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">更新日時</span>
+                                <span class="field-name">updatedAt</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="table-description">
+                        <div class="table-description-title">テーブル説明</div>
+                        <p>出店者の基本情報と抽選比重を管理するテーブル。比重が0の出店者は抽選対象外となります。</p>
+                    </div>
+                </div>
+
+                <!-- 運命バッチテーブル -->
+                <div class="entity">
+                    <div class="entity-header">運命バッチ (FATE_BATCHES)</div>
+                    <div class="entity-content">
+                        <ul class="attributes">
+                            <li class="attribute primary-key">
+                                <span class="data-type">int</span> 
+                                <span class="jp-name">バッチID</span>
+                                <span class="field-name">batchId</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">int</span> 
+                                <span class="jp-name">バッチサイズ</span>
+                                <span class="field-name">batchSize</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">enum</span> 
+                                <span class="jp-name">ステータス</span>
+                                <span class="field-name">status</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">作成日時</span>
+                                <span class="field-name">createdAt</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">有効化日時</span>
+                                <span class="field-name">activatedAt</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">完了日時</span>
+                                <span class="field-name">completedAt</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="table-description">
+                        <div class="table-description-title">テーブル説明</div>
+                        <p>運命チケットのバッチを管理します。バッチサイズは有効な出店者の比重合計と等しくなります。ステータスは「pending」「active」「completed」「archived」のいずれかです。</p>
+                    </div>
+                </div>
+
+                <!-- 運命チケットテーブル -->
+                <div class="entity">
+                    <div class="entity-header">運命チケット (FATE_TICKETS)</div>
+                    <div class="entity-content">
+                        <ul class="attributes">
+                            <li class="attribute primary-key">
+                                <span class="data-type">int</span> 
+                                <span class="jp-name">運命チケットID</span>
+                                <span class="field-name">fateTicketId</span>
+                            </li>
+                            <li class="attribute foreign-key">
+                                <span class="data-type">int</span> 
+                                <span class="jp-name">バッチID</span>
+                                <span class="field-name">batchId</span>
+                            </li>
+                            <li class="attribute foreign-key">
+                                <span class="data-type">varchar</span> 
+                                <span class="jp-name">出店者ID</span>
+                                <span class="field-name">coffeeshopId</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">int</span> 
+                                <span class="jp-name">運命チケット位置</span>
+                                <span class="field-name">fatePosition</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">enum</span> 
+                                <span class="jp-name">状態</span>
+                                <span class="field-name">status</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">boolean</span> 
+                                <span class="jp-name">抽選済</span>
+                                <span class="field-name">isDrawn</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">抽選日時</span>
+                                <span class="field-name">drawnAt</span>
+                            </li>
+                            <li class="attribute foreign-key">
+                                <span class="data-type">varchar</span> 
+                                <span class="jp-name">抽選者ID</span>
+                                <span class="field-name">drawnById</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="table-description">
+                        <div class="table-description-title">テーブル説明</div>
+                        <p>個々の運命チケット情報を管理します。各出店者の比重と同じ枚数のチケットが生成され、シャッフル後の順序をfatePosition値として保存します。ユーザーがくじを引くと、対応するチケットのisDrawnがtrueになり、drawnByIdとdrawnAtが設定されます。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="user-tables" class="table-group">
+            <h2 class="group-title">ユーザーテーブル</h2>
+            
+            <div class="er-diagram">
+                <!-- ユーザーテーブル -->
+                <div class="entity">
+                    <div class="entity-header">ユーザー (USERS)</div>
+                    <div class="entity-content">
+                        <ul class="attributes">
+                            <li class="attribute primary-key">
+                                <span class="data-type">varchar</span> 
+                                <span class="jp-name">ユーザーID</span>
+                                <span class="field-name">userId</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">varchar</span> 
+                                <span class="jp-name">ユーザー名</span>
+                                <span class="field-name">username</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">varchar</span> 
+                                <span class="jp-name">メールアドレス</span>
+                                <span class="field-name">email</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">作成日時</span>
+                                <span class="field-name">createdAt</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">最終ログイン</span>
+                                <span class="field-name">lastLoginAt</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="table-description">
+                        <div class="table-description-title">テーブル説明</div>
+                        <p>くじ引きシステムを利用するユーザー情報を管理します。認証や履歴追跡に使用されます。ユーザーがくじを引くと、運命チケットテーブルの対応するレコードにユーザーIDが紐づけられます。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="system-tables" class="table-group">
+            <h2 class="group-title">システム設定テーブル</h2>
+            
+            <div class="er-diagram">
+                <!-- システム設定テーブル -->
+                <div class="entity">
+                    <div class="entity-header">システム設定 (SETTINGS)</div>
+                    <div class="entity-content">
+                        <ul class="attributes">
+                            <li class="attribute primary-key">
+                                <span class="data-type">int</span> 
+                                <span class="jp-name">設定ID</span>
+                                <span class="field-name">settingId</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">int</span> 
+                                <span class="jp-name">残り閾値</span>
+                                <span class="field-name">threshold</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">更新日時</span>
+                                <span class="field-name">updatedAt</span>
+                            </li>
+                            <li class="attribute foreign-key">
+                                <span class="data-type">varchar</span> 
+                                <span class="jp-name">更新者ID</span>
+                                <span class="field-name">updatedById</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="table-description">
+                        <div class="table-description-title">テーブル説明</div>
+                        <p>システム全体の設定を管理します。残り閾値は次のバッチを自動生成するための残りチケット数の閾値です。</p>
+                    </div>
+                </div>
+
+                <!-- バッチ生成キューテーブル -->
+                <div class="entity">
+                    <div class="entity-header">バッチ生成キュー (BATCH_QUEUE)</div>
+                    <div class="entity-content">
+                        <ul class="attributes">
+                            <li class="attribute primary-key">
+                                <span class="data-type">int</span> 
+                                <span class="jp-name">キューID</span>
+                                <span class="field-name">queueId</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">リクエスト日時</span>
+                                <span class="field-name">requestedAt</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">enum</span> 
+                                <span class="jp-name">優先度</span>
+                                <span class="field-name">priority</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">enum</span> 
+                                <span class="jp-name">状態</span>
+                                <span class="field-name">status</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">処理日時</span>
+                                <span class="field-name">processedAt</span>
+                            </li>
+                            <li class="attribute foreign-key">
+                                <span class="data-type">int</span> 
+                                <span class="jp-name">バッチID</span>
+                                <span class="field-name">batchId</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">text</span> 
+                                <span class="jp-name">エラーメッセージ</span>
+                                <span class="field-name">errorMessage</span>
+                            </li>
+                        </ul>
+                    

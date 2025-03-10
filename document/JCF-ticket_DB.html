@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>くじシステム データベース設計</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            margin: 20px;
+            background-color: #f8f9fa;
+            color: #333;
+            font-size: 13px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            font-size: 1.6rem;
+        }
+        
+        .description {
+            background-color: #e7f5ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            border-left: 5px solid #3498db;
+            font-size: 0.9rem;
+        }
+        
+        .description p {
+            margin-bottom: 8px;
+        }
+        
+        .er-diagram {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .entity {
+            background-color: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid #ddd;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+        }
+        
+        .entity:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.15);
+        }
+        
+        .entity-header {
+            background-color: #3498db;
+            color: white;
+            padding: 10px;
+            font-weight: bold;
+            text-align: center;
+            font-size: 0.95rem;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+        
+        .entity-content {
+            padding: 0;
+        }
+        
+        .attributes {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .attribute {
+            padding: 8px 12px;
+            border-bottom: 1px solid #eee;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+        }
+        
+        .attribute:last-child {
+            border-bottom: none;
+        }
+        
+        .primary-key {
+            font-weight: bold;
+            background-color: #ffecec;
+        }
+        
+        .primary-key:before {
+            content: "🔑";
+            margin-right: 6px;
+            font-size: 11px;
+        }
+        
+        .foreign-key {
+            background-color: #e6f7ff;
+        }
+        
+        .foreign-key:before {
+            content: "🔗";
+            margin-right: 6px;
+            font-size: 11px;
+        }
+        
+        .relationship-diagram {
+            margin-top: 30px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid #ddd;
+        }
+        
+        .relationship-title {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 8px;
+            font-size: 1.1rem;
+        }
+        
+        .relationship-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+            gap: 12px;
+        }
+        
+        .relationship {
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            padding: 12px;
+            border-left: 4px solid #3498db;
+            transition: background-color 0.2s;
+            position: relative;
+            font-size: 0.85rem;
+        }
+        
+        .relationship:hover {
+            background-color: #e7f5ff;
+        }
+        
+        .relationship-type {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            font-size: 0.7rem;
+            background-color: #3498db;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 12px;
+        }
+        
+        .data-type {
+            color: #6c757d;
+            font-size: 0.7rem;
+            background-color: #f0f0f0;
+            padding: 2px 5px;
+            border-radius: 3px;
+            margin-right: 6px;
+            min-width: 45px;
+            text-align: center;
+        }
+        
+        .jp-name {
+            color: #2d3436;
+            font-weight: 500;
+            margin-right: 6px;
+            flex: 1;
+        }
+        
+        .field-name {
+            color: #0984e3;
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+        
+        .table-group {
+            margin-bottom: 25px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            background-color: #fff;
+        }
+        
+        .group-title {
+            margin-top: 0;
+            margin-bottom: 12px;
+            color: #2c3e50;
+            font-size: 1.1rem;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 8px;
+        }
+        
+        .navigation {
+            position: sticky;
+            top: 0;
+            background-color: #fff;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+        
+        .nav-links {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+        }
+        
+        .nav-link {
+            padding: 6px 12px;
+            margin: 4px;
+            background-color: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            transition: background-color 0.2s;
+        }
+        
+        .nav-link:hover {
+            background-color: #2980b9;
+        }
+        
+        .table-connection {
+            margin: 15px 0;
+            padding: 12px;
+            background-color: #f1f9ff;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+            font-size: 0.9rem;
+        }
+        
+        .connection-title {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #2c3e50;
+        }
+        
+        .connection-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+        
+        .connection-entity {
+            background-color: #fff;
+            padding: 6px 12px;
+            border-radius: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            font-size: 0.8rem;
+        }
+        
+        .connection-arrow {
+            display: flex;
+            align-items: center;
+            color: #7f8c8d;
+            font-size: 16px;
+        }
+
+        /* テーブル説明 */
+        .table-description {
+            margin-top: 8px;
+            padding: 8px 12px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            font-size: 0.8rem;
+        }
+        
+        .table-description-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #2c3e50;
+            font-size: 0.85rem;
+        }
+
+        /* スクロールトップボタン */
+        .scroll-top {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #3498db;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            text-decoration: none;
+            font-size: 18px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s;
+        }
+        
+        .scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const scrollTopBtn = document.getElementById('scrollTop');
+            
+            if (scrollTopBtn) {
+                window.addEventListener('scroll', function() {
+                    if (window.scrollY > 300) {
+                        scrollTopBtn.classList.add('visible');
+                    } else {
+                        scrollTopBtn.classList.remove('visible');
+                    }
+                });
+                
+                scrollTopBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                });
+            }
+        });
+    </script>
+</head>
+<body>
+    <!-- スクロールトップボタン -->
+    <a href="#" class="scroll-top" id="scrollTop">↑</a>
+    
+    <div class="container">
+        <h1>イベントチケットシステム データベース設計</h1>
+        
+        <div class="description">
+            <p>このER図は、イベントチケットシステムおよび運命くじ機能を含むデータベース設計を表しています。</p>
+            <p>主キー（PK）は🔑アイコンで、外部キー（FK）は🔗アイコンで示されています。</p>
+        </div>
+
+        <div class="navigation">
+            <div class="nav-links">
+                <a href="#user-tables" class="nav-link">ユーザー管理</a>
+                <a href="#event-tables" class="nav-link">イベント管理</a>
+                <a href="#ticket-tables" class="nav-link">チケット管理</a>
+                <a href="#shop-tables" class="nav-link">店舗管理</a>
+                <a href="#fate-tables" class="nav-link">運命くじ管理</a>
+            </div>
+        </div>
+        
+        <div id="user-tables" class="table-group">
+            <h2 class="group-title">ユーザー管理</h2>
+            
+            <div class="er-diagram" style="grid-template-columns: repeat(2, 1fr);">
+                <!-- ユーザーテーブル -->
+                <div class="entity">
+                    <div class="entity-header">ユーザー (User)</div>
+                    <div class="entity-content">
+                        <ul class="attributes">
+                            <li class="attribute primary-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">ID</span>
+                                <span class="field-name">id</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">string</span> 
+                                <span class="jp-name">ユーザー名</span>
+                                <span class="field-name">username</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">string</span> 
+                                <span class="jp-name">メールアドレス</span>
+                                <span class="field-name">email</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">最終ログイン</span>
+                                <span class="field-name">last_login</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">削除日</span>
+                                <span class="field-name">deleted_at</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="table-description">
+                        <div class="table-description-title">テーブル説明</div>
+                        <p>チケットシステムを利用するユーザー情報を管理します。チケットの購入や運命くじの抽選などの基本情報と履歴を紐づけます。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="event-tables" class="table-group">
+            <h2 class="group-title">イベント管理</h2>
+            
+            <div class="table-connection">
+                <div class="connection-title">イベント関連テーブルの関係</div>
+                <div class="connection-details">
+                    <div class="connection-entity">イベント (Event)</div>
+                    <div class="connection-arrow">→</div>
+                    <div class="connection-entity">イベント日時 (EventDate)</div>
+                    <div class="connection-arrow">→</div>
+                    <div class="connection-entity">イベント会場 (EventVenue)</div>
+                </div>
+            </div>
+            
+            <div class="er-diagram">
+                <!-- イベントテーブル -->
+                <div class="entity">
+                    <div class="entity-header">イベント (Event)</div>
+                    <div class="entity-content">
+                        <ul class="attributes">
+                            <li class="attribute primary-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">ID</span>
+                                <span class="field-name">id</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">string</span> 
+                                <span class="jp-name">イベント名</span>
+                                <span class="field-name">name</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">string</span> 
+                                <span class="jp-name">テーマ</span>
+                                <span class="field-name">theme</span>
+                            </li>
+                            <li class="attribute foreign-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">開催日時ID</span>
+                                <span class="field-name">event_date_id</span>
+                            </li>
+                            <li class="attribute foreign-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">開催地ID</span>
+                                <span class="field-name">event_venue_id</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">削除日</span>
+                                <span class="field-name">deleted_at</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="table-description">
+                        <div class="table-description-title">テーブル説明</div>
+                        <p>イベントの基本情報を管理します。イベント名やテーマなどの基本情報に加え、開催日時と開催場所への参照を持ちます。</p>
+                    </div>
+                </div>
+
+                <!-- イベント日時テーブル -->
+                <div class="entity">
+                    <div class="entity-header">イベント日時 (EventDate)</div>
+                    <div class="entity-content">
+                        <ul class="attributes">
+                            <li class="attribute primary-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">ID</span>
+                                <span class="field-name">id</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">date</span> 
+                                <span class="jp-name">開催日</span>
+                                <span class="field-name">event_date</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">time</span> 
+                                <span class="jp-name">開催時間</span>
+                                <span class="field-name">event_time</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">削除日</span>
+                                <span class="field-name">deleted_at</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="table-description">
+                        <div class="table-description-title">テーブル説明</div>
+                        <p>イベントの開催日時情報を管理します。イベントは開催日時をFKとして参照します。</p>
+                    </div>
+                </div>
+
+                <!-- イベント会場テーブル -->
+                <div class="entity">
+                    <div class="entity-header">イベント会場 (EventVenue)</div>
+                    <div class="entity-content">
+                        <ul class="attributes">
+                            <li class="attribute primary-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">ID</span>
+                                <span class="field-name">id</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">string</span> 
+                                <span class="jp-name">開催国</span>
+                                <span class="field-name">country</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">string</span> 
+                                <span class="jp-name">開催都道府県</span>
+                                <span class="field-name">prefecture</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">string</span> 
+                                <span class="jp-name">開催市区町村</span>
+                                <span class="field-name">city</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">string</span> 
+                                <span class="jp-name">受付場所</span>
+                                <span class="field-name">reception_location</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">string</span> 
+                                <span class="jp-name">開催場所URL</span>
+                                <span class="field-name">venue_url</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">string</span> 
+                                <span class="jp-name">開催場所電話番号</span>
+                                <span class="field-name">venue_phone</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">削除日</span>
+                                <span class="field-name">deleted_at</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="table-description">
+                        <div class="table-description-title">テーブル説明</div>
+                        <p>イベントの開催場所情報を管理します。住所や連絡先などの情報を保持します。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="ticket-tables" class="table-group">
+            <h2 class="group-title">チケット管理</h2>
+            
+            <div class="table-connection">
+                <div class="connection-title">チケット関連テーブルの関係</div>
+                <div class="connection-details">
+                    <div class="connection-entity">購入履歴 (PurchaseHistory)</div>
+                    <div class="connection-arrow">→</div>
+                    <div class="connection-entity">チケット種別 (TicketType)</div>
+                    <div class="connection-arrow">→</div>
+                    <div class="connection-entity">チケット価格 (TicketPrice)</div>
+                </div>
+            </div>
+            
+            <div class="er-diagram">
+                <!-- 購入履歴テーブル -->
+                <div class="entity">
+                    <div class="entity-header">購入履歴 (PurchaseHistory)</div>
+                    <div class="entity-content">
+                        <ul class="attributes">
+                            <li class="attribute primary-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">ID</span>
+                                <span class="field-name">id</span>
+                            </li>
+                            <li class="attribute foreign-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">イベントID</span>
+                                <span class="field-name">event_id</span>
+                            </li>
+                            <li class="attribute foreign-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">ユーザーID</span>
+                                <span class="field-name">user_id</span>
+                            </li>
+                            <li class="attribute foreign-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">チケット種別ID</span>
+                                <span class="field-name">ticket_type_id</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">購入日</span>
+                                <span class="field-name">purchase_date</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">integer</span> 
+                                <span class="jp-name">購入数</span>
+                                <span class="field-name">quantity</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">string</span> 
+                                <span class="jp-name">購入ID</span>
+                                <span class="field-name">payment_id</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">削除日</span>
+                                <span class="field-name">deleted_at</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="table-description">
+                        <div class="table-description-title">テーブル説明</div>
+                        <p>ユーザーのチケット購入履歴を管理します。イベント、ユーザー、チケット種別との関連を持ち、購入日時や枚数などの情報を記録します。</p>
+                    </div>
+                </div>
+
+                <!-- チケット種別テーブル -->
+                <div class="entity">
+                    <div class="entity-header">チケット種別 (TicketType)</div>
+                    <div class="entity-content">
+                        <ul class="attributes">
+                            <li class="attribute primary-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">ID</span>
+                                <span class="field-name">id</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">string</span> 
+                                <span class="jp-name">チケットタイトル</span>
+                                <span class="field-name">title</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">string</span> 
+                                <span class="jp-name">説明</span>
+                                <span class="field-name">description</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">enum</span> 
+                                <span class="jp-name">カテゴリ</span>
+                                <span class="field-name">ticket_category</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">integer</span> 
+                                <span class="jp-name">枚数(セット数)</span>
+                                <span class="field-name">quantity</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">削除日</span>
+                                <span class="field-name">deleted_at</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="table-description">
+                        <div class="table-description-title">テーブル説明</div>
+                        <p>チケットの種類を管理します。当日券/前売り券/追加券などのカテゴリや、チケットのタイトル、説明、枚数などの情報を持ちます。</p>
+                    </div>
+                </div>
+
+                <!-- チケット価格テーブル -->
+                <div class="entity">
+                    <div class="entity-header">チケット価格 (TicketPrice)</div>
+                    <div class="entity-content">
+                        <ul class="attributes">
+                            <li class="attribute primary-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">ID</span>
+                                <span class="field-name">id</span>
+                            </li>
+                            <li class="attribute foreign-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">チケット種別ID</span>
+                                <span class="field-name">ticket_type_id</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">integer</span> 
+                                <span class="jp-name">価格</span>
+                                <span class="field-name">price</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">有効開始日時</span>
+                                <span class="field-name">valid_from</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">有効終了日時</span>
+                                <span class="field-name">valid_until</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">削除日</span>
+                                <span class="field-name">deleted_at</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="table-description">
+                        <div class="table-description-title">テーブル説明</div>
+                        <p>チケットの価格情報を管理します。価格の有効期間を設定できるため、期間限定の割引や価格変更に対応できます。</p>
+                    </div>
+                </div>
+
+                <!-- 全店舗チケットテーブル -->
+                <div class="entity">
+                    <div class="entity-header">全店舗チケット (AllStoreTicket)</div>
+                    <div class="entity-content">
+                        <ul class="attributes">
+                            <li class="attribute primary-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">ID</span>
+                                <span class="field-name">id</span>
+                            </li>
+                            <li class="attribute foreign-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">イベントID</span>
+                                <span class="field-name">event_id</span>
+                            </li>
+                            <li class="attribute foreign-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">ユーザーID</span>
+                                <span class="field-name">user_id</span>
+                            </li>
+                            <li class="attribute foreign-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">使用店舗ID</span>
+                                <span class="field-name">shop_id</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">使用日時</span>
+                                <span class="field-name">used_at</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">削除日</span>
+                                <span class="field-name">deleted_at</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="table-description">
+                        <div class="table-description-title">テーブル説明</div>
+                        <p>全ての店舗で使用できるチケットを管理します。どのユーザーがどの店舗で使用したかの情報を記録します。</p>
+                    </div>
+                </div>
+
+                <!-- 全店舗チケット移行履歴テーブル -->
+                <div class="entity">
+                    <div class="entity-header">全店舗チケット移行履歴 (AllStoreTicketTransferHistory)</div>
+                    <div class="entity-content">
+                        <ul class="attributes">
+                            <li class="attribute primary-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">ID</span>
+                                <span class="field-name">id</span>
+                            </li>
+                            <li class="attribute foreign-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">全店舗チケットID</span>
+                                <span class="field-name">all_store_ticket_id</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">移行日時</span>
+                                <span class="field-name">transfer_date</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">string</span> 
+                                <span class="jp-name">担当者</span>
+                                <span class="field-name">staff_name</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">削除日</span>
+                                <span class="field-name">deleted_at</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="table-description">
+                        <div class="table-description-title">テーブル説明</div>
+                        <p>全店舗チケットの移行履歴を管理します。チケットの移行日時や担当者情報を記録します。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="shop-tables" class="table-group">
+            <h2 class="group-title">店舗管理</h2>
+            
+            <div class="er-diagram" style="grid-template-columns: repeat(2, 1fr);">
+                <!-- 店舗テーブル -->
+                <div class="entity">
+                    <div class="entity-header">店舗 (Shop)</div>
+                    <div class="entity-content">
+                        <ul class="attributes">
+                            <li class="attribute primary-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">ID</span>
+                                <span class="field-name">id</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">string</span> 
+                                <span class="jp-name">店舗番号</span>
+                                <span class="field-name">shop_number</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">string</span> 
+                                <span class="jp-name">出店者名</span>
+                                <span class="field-name">shop_name</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">string</span> 
+                                <span class="jp-name">出品コーヒー名</span>
+                                <span class="field-name">coffee_name</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">text</span> 
+                                <span class="jp-name">ご挨拶</span>
+                                <span class="field-name">greeting</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">string</span> 
+                                <span class="jp-name">焙煎度</span>
+                                <span class="field-name">roast_level</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">string</span> 
+                                <span class="jp-name">広報URL</span>
+                                <span class="field-name">pr_url</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">float</span> 
+                                <span class="jp-name">運命の比重</span>
+                                <span class="field-name">destiny_ratio</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">integer</span> 
+                                <span class="jp-name">チケット枚数</span>
+                                <span class="field-name">ticket_count</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">string</span> 
+                                <span class="jp-name">画像URL</span>
+                                <span class="field-name">image_url</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">text</span> 
+                                <span class="jp-name">備考</span>
+                                <span class="field-name">notes</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">削除日</span>
+                                <span class="field-name">deleted_at</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="table-description">
+                        <div class="table-description-title">テーブル説明</div>
+                        <p>イベントに出店する店舗情報を管理します。店舗の基本情報だけでなく、運命くじの比重やチケット枚数などの情報も持ちます。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="fate-tables" class="table-group">
+            <h2 class="group-title">運命くじ管理</h2>
+            
+            <div class="table-connection">
+                <div class="connection-title">運命くじ関連テーブルの関係</div>
+                <div class="connection-details">
+                    <div class="connection-entity">運命バッチ (FateBatch)</div>
+                    <div class="connection-arrow">→</div>
+                    <div class="connection-entity">運命チケット (FateTicket)</div>
+                    <div class="connection-arrow">←</div>
+                    <div class="connection-entity">ユーザー (User)</div>
+                </div>
+            </div>
+            
+            <div class="er-diagram">
+                <!-- 運命バッチテーブル -->
+                <div class="entity">
+                    <div class="entity-header">運命バッチ (FateBatch)</div>
+                    <div class="entity-content">
+                        <ul class="attributes">
+                            <li class="attribute primary-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">バッチID</span>
+                                <span class="field-name">id</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">integer</span> 
+                                <span class="jp-name">バッチサイズ</span>
+                                <span class="field-name">batch_size</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">enum</span> 
+                                <span class="jp-name">ステータス</span>
+                                <span class="field-name">status</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">作成日時</span>
+                                <span class="field-name">created_at</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">有効化日時</span>
+                                <span class="field-name">activated_at</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">完了日時</span>
+                                <span class="field-name">completed_at</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">削除日</span>
+                                <span class="field-name">deleted_at</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="table-description">
+                        <div class="table-description-title">テーブル説明</div>
+                        <p>運命くじのバッチを管理します。バッチサイズや状態（pending/active/completed等）、各種タイムスタンプ情報を持ちます。</p>
+                    </div>
+                </div>
+
+                <!-- 運命チケットテーブル -->
+                <div class="entity">
+                    <div class="entity-header">運命チケット (FateTicket)</div>
+                    <div class="entity-content">
+                        <ul class="attributes">
+                            <li class="attribute primary-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">運命チケットID</span>
+                                <span class="field-name">id</span>
+                            </li>
+                            <li class="attribute foreign-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">バッチID</span>
+                                <span class="field-name">batch_id</span>
+                            </li>
+                            <li class="attribute foreign-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">出店者ID</span>
+                                <span class="field-name">shop_id</span>
+                            </li>
+                            <li class="attribute foreign-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">イベントID</span>
+                                <span class="field-name">event_id</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">integer</span> 
+                                <span class="jp-name">運命チケット位置</span>
+                                <span class="field-name">fate_position</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">enum</span> 
+                                <span class="jp-name">状態</span>
+                                <span class="field-name">status</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">boolean</span> 
+                                <span class="jp-name">抽選済</span>
+                                <span class="field-name">is_drawn</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">抽選日時</span>
+                                <span class="field-name">drawn_at</span>
+                            </li>
+                            <li class="attribute foreign-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">抽選者ID</span>
+                                <span class="field-name">drawn_by_id</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">削除日</span>
+                                <span class="field-name">deleted_at</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="table-description">
+                        <div class="table-description-title">テーブル説明</div>
+                        <p>個々の運命くじチケット情報を管理します。どのバッチに属し、どの店舗に関連するかの情報や、抽選状況、抽選したユーザー情報などを記録します。</p>
+                    </div>
+                </div>
+
+                <!-- 運命チケット移行履歴テーブル -->
+                <div class="entity">
+                    <div class="entity-header">運命チケット移行履歴 (FateTicketTransferHistory)</div>
+                    <div class="entity-content">
+                        <ul class="attributes">
+                            <li class="attribute primary-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">ID</span>
+                                <span class="field-name">id</span>
+                            </li>
+                            <li class="attribute foreign-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">運命チケットID</span>
+                                <span class="field-name">fate_ticket_id</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">移行日時</span>
+                                <span class="field-name">transfer_date</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">string</span> 
+                                <span class="jp-name">担当者</span>
+                                <span class="field-name">staff_name</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">削除日</span>
+                                <span class="field-name">deleted_at</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="table-description">
+                        <div class="table-description-title">テーブル説明</div>
+                        <p>運命チケットの移行履歴を管理します。チケットの移行日時や担当者情報を記録します。</p>
+                    </div>
+                </div>
+
+                <!-- 設定テーブル -->
+                <div class="entity">
+                    <div class="entity-header">設定 (Setting)</div>
+                    <div class="entity-content">
+                        <ul class="attributes">
+                            <li class="attribute primary-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">設定ID</span>
+                                <span class="field-name">id</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">integer</span> 
+                                <span class="jp-name">残り閾値</span>
+                                <span class="field-name">threshold</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">更新日時</span>
+                                <span class="field-name">updated_at</span>
+                            </li>
+                            <li class="attribute foreign-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">更新者ID</span>
+                                <span class="field-name">updated_by_id</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">削除日</span>
+                                <span class="field-name">deleted_at</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="table-description">
+                        <div class="table-description-title">テーブル説明</div>
+                        <p>くじシステムの設定を管理します。次のバッチを自動生成するための残りチケット数の閾値などのシステム設定情報を持ちます。</p>
+                    </div>
+                </div>
+
+                <!-- バッチキューテーブル -->
+                <div class="entity">
+                    <div class="entity-header">バッチキュー (BatchQueue)</div>
+                    <div class="entity-content">
+                        <ul class="attributes">
+                            <li class="attribute primary-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">キューID</span>
+                                <span class="field-name">id</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">リクエスト日時</span>
+                                <span class="field-name">requested_at</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">enum</span> 
+                                <span class="jp-name">優先度</span>
+                                <span class="field-name">priority</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">enum</span> 
+                                <span class="jp-name">状態</span>
+                                <span class="field-name">status</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">処理日時</span>
+                                <span class="field-name">processed_at</span>
+                            </li>
+                            <li class="attribute foreign-key">
+                                <span class="data-type">uuid</span> 
+                                <span class="jp-name">バッチID</span>
+                                <span class="field-name">batch_id</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">text</span> 
+                                <span class="jp-name">エラーメッセージ</span>
+                                <span class="field-name">error_message</span>
+                            </li>
+                            <li class="attribute">
+                                <span class="data-type">timestamp</span> 
+                                <span class="jp-name">削除日</span>
+                                <span class="field-name">deleted_at</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="table-description">
+                        <div class="table-description-title">テーブル説明</div>
+                        <p>バッチ生成のキューを管理します。リクエスト日時、優先度、状態、処理日時などの情報を記録し、バッチ生成処理を効率的に行うための情報を持ちます。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="relationships" class="relationship-diagram">
+            <h2 class="relationship-title">テーブル間の主要な関係</h2>
+            
+            <div class="relationship-container">
+                <div class="relationship">
+                    <div class="relationship-type">1:多</div>
+                    <p>ユーザー → 購入履歴：1人のユーザーが複数のチケットを購入できる</p>
+                </div>
+                
+                <div class="relationship">
+                    <div class="relationship-type">1:多</div>
+                    <p>イベント → 購入履歴：1つのイベントに対して複数の購入履歴が存在する</p>
+                </div>
+                
+                <div class="relationship">
+                    <div class="relationship-type">1:多</div>
+                    <p>チケット種別 → 購入履歴：1つのチケット種別に対して複数の購入履歴が存在する</p>
+                </div>
+                
+                <div class="relationship">
+                    <div class="relationship-type">1:多</div>
+                    <p>イベント → 全店舗チケット：1つのイベントから複数の全店舗チケットが発行される</p>
+                </div>
+                
+                <div class="relationship">
+                    <div class="relationship-type">1:多</div>
+                    <p>ユーザー → 全店舗チケット：1人のユーザーが複数の全店舗チケットを保有できる</p>
+                </div>
+                
+                <div class="relationship">
+                    <div class="relationship-type">1:1</div>
+                    <p>全店舗チケット → 全店舗チケット移行履歴：1枚のチケットは1つの移行履歴を持つ</p>
+                </div>
+                
+                <div class="relationship">
+                    <div class="relationship-type">1:多</div>
+                    <p>運命バッチ → 運命チケット：1つのバッチに複数の運命チケットが含まれる</p>
+                </div>
+                
+                <div class="relationship">
+                    <div class="relationship-type">1:多</div>
+                    <p>ユーザー → 運命チケット：1人のユーザーが複数の運命チケットを抽選できる</p>
+                </div>
+                
+                <div class="relationship">
+                    <div class="relationship-type">1:1</div>
+                    <p>運命チケット → 運命チケット移行履歴：1枚の運命チケットは1つの移行履歴を持つ</p>
+                </div>
+                
+                <div class="relationship">
+                    <div class="relationship-type">1:多</div>
+                    <p>店舗 → 運命チケット：1つの店舗に対して複数の運命チケットが存在する</p>
+                </div>
+                
+                <div class="relationship">
+                    <div class="relationship-type">1:多</div>
+                    <p>イベント → 運命チケット：1つのイベントから複数の運命チケットが発行される</p>
+                </div>
+                
+                <div class="relationship">
+                    <div class="relationship-type">1:多</div>
+                    <p>設定 → 運命バッチ：設定に基づいて複数の運命バッチが管理される</p>
+                </div>
+                
+                <div class="relationship">
+                    <div class="relationship-type">1:1</div>
+                    <p>バッチキュー → 運命バッチ：1つのバッチキューは1つの運命バッチを生成する</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
