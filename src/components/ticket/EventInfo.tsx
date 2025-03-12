@@ -8,15 +8,15 @@ export function EventInfo({ event }: EventInfoProps) {
   // イベント日時の表示形式を整形 - より簡潔に
   let formattedDates = '日時未定';
   
-  if (event.event_dates && event.event_dates.length > 0) {
+  if (event.EventDate && event.EventDate.length > 0) {
     // 日付でグループ化
     const dateGroups: Record<string, string[]> = {};
     
-    event.event_dates.forEach(date => {
-      if (!dateGroups[date.date]) {
-        dateGroups[date.date] = [];
+    event.EventDate.forEach(dateObj => {
+      if (!dateGroups[dateObj.date]) {
+        dateGroups[dateObj.date] = [];
       }
-      dateGroups[date.date].push(date.time);
+      dateGroups[dateObj.date].push(dateObj.time);
     });
     
     // 日付ごとに整形

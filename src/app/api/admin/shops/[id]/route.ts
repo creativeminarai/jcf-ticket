@@ -47,7 +47,7 @@ export async function PUT(
 
     // 更新するデータを準備
     const updateData = {
-      shop_number: body.shopNumber,
+      shop_code: body.shopNumber,
       shop_name: body.shopName,
       coffee_name: body.coffeeName,
       greeting: body.greeting,

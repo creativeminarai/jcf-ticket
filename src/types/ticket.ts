@@ -24,7 +24,7 @@ export interface Event {
   theme: string | null;
   image_url: string | null;
   event_number: number | null;
-  event_dates: EventDate[];
+  EventDate: EventDate[]; // プロパティ名をevent_datesからEventDateに変更
   status: string;
   country?: string;
   prefecture?: string;

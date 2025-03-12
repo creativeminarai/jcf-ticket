@@ -1,6 +1,6 @@
 export type Shop = {
   id: string;
-  shop_number: string;
+  shop_code: string;
   shop_name: string;
   coffee_name: string;
   greeting: string;
@@ -24,6 +24,7 @@ export type Event = {
   image_url?: string;
   event_number?: number;
   deleted_at?: string | null;
+  EventDate?: EventDate[]; // イベント日付の配列
 };
 
 export type EventVenue = {
@@ -39,6 +40,7 @@ export type EventDate = {
   id: string;
   date: string;
   time: string;
+  event_id: string;
   deleted_at?: string | null;
 };
 

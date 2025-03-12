@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { parse } from "csv-parse/sync";
 
 type ShopRow = {
-  shop_number: string;
+  shop_code: string;
   shop_name: string;
   coffee_name: string;
   greeting: string;
@@ -38,12 +38,12 @@ export async function POST(request: NextRequest) {
 
     // バリデーションと型変換
     const shops: ShopRow[] = records.map((record: any) => {
-      if (!record.shop_number || !record.shop_name) {
+      if (!record.shop_code || !record.shop_name) {
         throw new Error("店舗番号と店舗名は必須です");
       }
 
       return {
-        shop_number: record.shop_number,
+        shop_code: record.shop_code,
         shop_name: record.shop_name,
         coffee_name: record.coffee_name || "",
         greeting: record.greeting || "",
@@ -60,11 +60,11 @@ export async function POST(request: NextRequest) {
     const { error } = await supabase.from("shops").upsert(
       shops.map((shop) => ({
         ...shop,
-        // 同じshop_numberの場合は更新
-        shop_number: shop.shop_number,
+        // 同じshop_codeの場合は更新
+        shop_code: shop.shop_code,
       })),
       {
-        onConflict: "shop_number",
+        onConflict: "shop_code",
       }
     );
 

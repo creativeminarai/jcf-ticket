@@ -15,7 +15,7 @@ interface Event {
   id: string;
   name: string;
   theme: string | null;
-  event_dates: EventDate[];
+  EventDate: EventDate[];
   status: string;
   image_url: string | null;
   event_url: string | null;
@@ -100,7 +100,7 @@ export default function Home() {
             image_url: event.image_url,
             event_url: event.event_url,
             event_number: event.event_number,
-            event_dates: eventDatesMap[event.id] || []
+            EventDate: eventDatesMap[event.id] || []
           };
         });
 
@@ -184,7 +184,7 @@ export default function Home() {
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm text-gray-600">
-                      開催日: {formatEventDates(event.event_dates)}
+                      開催日: {formatEventDates(event.EventDate)}
                     </p>
                     {event.status === 'closed' ? (
                       <p className="text-sm font-medium text-red-600">

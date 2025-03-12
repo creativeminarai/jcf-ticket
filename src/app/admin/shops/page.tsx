@@ -1,29 +1,41 @@
 import { ShopsClient } from "./ShopsClient";
 import type { Database } from "@/types/database.types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { Event } from "@/types/shop";
 
 export default async function ShopsPage() {
   let shops = [];
+  let events = [];
   let errorMessage = null;
 
   try {
     // 新しいSupabaseクライアント作成方法を使用
     const supabase = await createSupabaseServerClient();
 
-    // Supabaseから出店者データを取得
-    const { data, error } = await supabase
-      .from("Shop")
-      .select("*")
-      .order("shop_number");
+    // Supabaseから出店者データとイベントデータを取得
+    const [shopsResponse, eventsResponse] = await Promise.all([
+      supabase
+        .from("Shop")
+        .select("*")
+        .order("shop_code"),
+      supabase
+        .from("Event")
+        .select("*, EventDate(*)")
+        .order("event_number", { ascending: false })
+    ]);
 
-    if (error) {
-      console.error("Error fetching shops:", error.message);
-      errorMessage = `データの取得中にエラーが発生しました: ${error.message}`;
+    if (shopsResponse.error) {
+      console.error("Error fetching shops:", shopsResponse.error.message);
+      errorMessage = `出店者データの取得中にエラーが発生しました: ${shopsResponse.error.message}`;
+    } else if (eventsResponse.error) {
+      console.error("Error fetching events:", eventsResponse.error.message);
+      errorMessage = `イベントデータの取得中にエラーが発生しました: ${eventsResponse.error.message}`;
     } else {
-      shops = data || [];
+      shops = shopsResponse.data || [];
+      events = eventsResponse.data || [];
     }
   } catch (err) {
-    console.error("Error fetching shops:", err);
+    console.error("Error fetching data:", err);
     errorMessage = "データの取得中に予期せぬエラーが発生しました。ネットワーク接続を確認してください。";
   }
 
@@ -37,5 +49,5 @@ export default async function ShopsPage() {
     );
   }
 
-  return <ShopsClient initialShops={shops} />;
+  return <ShopsClient initialShops={shops} events={events} />;
 }

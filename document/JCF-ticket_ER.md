@@ -18,6 +18,9 @@ erDiagram
     AllStoreTicket }o--|| Shop : "使用される"
     
     Shop ||--o{ FateTicket : "くじ対象となる"
+    Shop ||--o{ ShopAttendance : "出店日を持つ"
+    EventDate ||--o{ ShopAttendance : "出店される"
+    
     FateBatch ||--o{ FateTicket : "含む"
     User ||--o{ FateTicket : "抽選する"
     FateTicket ||--|| FateTicketTransferHistory : "移行される"
@@ -30,6 +33,8 @@ erDiagram
         timestamp deleted_at "削除日"
         timestamp last_login "最終ログイン"
         string email "メールアドレス"
+        timestamp created_at "作成日時"
+        timestamp updated_at "更新日時"
     }
     
     PurchaseHistory {
@@ -41,6 +46,8 @@ erDiagram
         timestamp purchase_date "購入日"
         integer quantity "購入数"
         string payment_id "購入ID"
+        timestamp created_at "作成日時"
+        timestamp updated_at "更新日時"
     }
     
     TicketType {
@@ -50,6 +57,8 @@ erDiagram
         enum ticket_category "カテゴリ(当日券/前売り券/追加券等)"
         integer quantity "枚数(セット数)"
         timestamp deleted_at "削除日"
+        timestamp created_at "作成日時"
+        timestamp updated_at "更新日時"
     }
     
     TicketPrice {
@@ -59,22 +68,32 @@ erDiagram
         timestamp valid_from "有効開始日時"
         timestamp valid_until "有効終了日時"
         timestamp deleted_at "削除日"
+        timestamp created_at "作成日時"
+        timestamp updated_at "更新日時"
     }
     
     Event {
         uuid id PK "ID"
         string name "イベント名"
         string theme "テーマ"
-        timestamp deleted_at "削除日"
-        uuid event_date_id FK "開催日時ID"
         uuid event_venue_id FK "開催地ID"
+        enum status "ステータス(draft/published/closed)"
+        string event_url "イベントURL"
+        string image_url "イメージURL"
+        integer event_number "イベント番号"
+        timestamp deleted_at "削除日"
+        timestamp created_at "作成日時"
+        timestamp updated_at "更新日時"
     }
     
     EventDate {
         uuid id PK "ID"
+        string date "開催日"
+        string time "開催時間"
+        uuid event_id FK "イベントID"
         timestamp deleted_at "削除日"
-        date event_date "開催日"
-        time event_time "開催時間"
+        timestamp created_at "作成日時"
+        timestamp updated_at "更新日時"
     }
     
     EventVenue {
@@ -86,6 +105,8 @@ erDiagram
         string reception_location "受付場所"
         string venue_url "開催場所URL"
         string venue_phone "開催場所電話番号"
+        timestamp created_at "作成日時"
+        timestamp updated_at "更新日時"
     }
     
     AllStoreTicket {
@@ -95,6 +116,8 @@ erDiagram
         uuid shop_id FK "使用店舗ID"
         timestamp used_at "使用日時"
         timestamp deleted_at "削除日"
+        timestamp created_at "作成日時"
+        timestamp updated_at "更新日時"
     }
     
     AllStoreTicketTransferHistory {
@@ -103,21 +126,26 @@ erDiagram
         timestamp transfer_date "移行日時"
         string staff_name "担当者"
         timestamp deleted_at "削除日"
+        timestamp created_at "作成日時"
+        timestamp updated_at "更新日時"
     }
     
     Shop {
         uuid id PK "ID"
-        string shop_number "店舗番号"
+        string shop_code "店舗コード"
         string shop_name "出店者名"
         string coffee_name "出品コーヒー名"
         text greeting "ご挨拶"
         string roast_level "焙煎度"
         string pr_url "広報URL"
+        <!-- 運命の比重は整数で0から10までの数値 -->
         float destiny_ratio "運命の比重"
         integer ticket_count "チケット枚数"
         string image_url "画像URL"
         text notes "備考"
         timestamp deleted_at "削除日"
+        timestamp created_at "作成日時"
+        timestamp updated_at "更新日時"
     }
     
     FateTicketTransferHistory {
@@ -126,6 +154,8 @@ erDiagram
         timestamp transfer_date "移行日時"
         string staff_name "担当者"
         timestamp deleted_at "削除日"
+        timestamp created_at "作成日時"
+        timestamp updated_at "更新日時"
     }
     
     FateBatch {
@@ -149,6 +179,8 @@ erDiagram
         timestamp drawn_at "抽選日時"
         uuid drawn_by_id FK "抽選者ID"
         timestamp deleted_at "削除日"
+        timestamp created_at "作成日時"
+        timestamp updated_at "更新日時"
     }
     
     Setting {
@@ -157,6 +189,7 @@ erDiagram
         timestamp updated_at "更新日時"
         uuid updated_by_id FK "更新者ID"
         timestamp deleted_at "削除日"
+        timestamp created_at "作成日時"
     }
     
     BatchQueue {
@@ -168,5 +201,17 @@ erDiagram
         uuid batch_id FK "バッチID"
         text error_message "エラーメッセージ"
         timestamp deleted_at "削除日"
+        timestamp created_at "作成日時"
+        timestamp updated_at "更新日時"
+    }
+    
+    ShopAttendance {
+        uuid id PK "ID"
+        uuid shop_id FK "店舗ID"
+        uuid event_date_id FK "イベント日ID"
+        text notes "備考"
+        timestamp deleted_at "削除日"
+        timestamp created_at "作成日時"
+        timestamp updated_at "更新日時"
     }
 ```

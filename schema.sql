@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS "TicketPrice" (
 -- Shop テーブル
 CREATE TABLE IF NOT EXISTS "Shop" (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    shop_number VARCHAR,
+    shop_code VARCHAR,
     shop_name VARCHAR NOT NULL,
     coffee_name VARCHAR,
     greeting TEXT,
