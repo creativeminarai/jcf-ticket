@@ -1,0 +1,91 @@
+export type Shop = {
+  id: string;
+  shop_number: string;
+  shop_name: string;
+  coffee_name: string;
+  greeting: string;
+  roast_level: string;
+  pr_url: string;
+  destiny_ratio: number;
+  ticket_count: number;
+  image_url: string | null;
+  notes: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type Event = {
+  id: string;
+  name: string;
+  theme?: string;
+  event_venue_id?: string;
+  status?: "draft" | "published" | "closed";
+  event_url?: string;
+  image_url?: string;
+  event_number?: number;
+  deleted_at?: string | null;
+};
+
+export type EventVenue = {
+  id: string;
+  country: string;
+  prefecture: string;
+  city: string;
+  reception_location: string;
+  deleted_at?: string | null;
+};
+
+export type EventDate = {
+  id: string;
+  date: string;
+  time: string;
+  deleted_at?: string | null;
+};
+
+export type EventWithDates = Event & {
+  EventVenue?: EventVenue;
+  EventDate?: EventDate;
+};
+
+export type Ticket = {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  quantity: number;
+  event_id: string;
+  status: "available" | "sold_out" | "closed";
+  created_at?: string;
+  updated_at?: string;
+};
+
+// Supabase
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  public: {
+    Tables: {
+      Shop: {
+        Row: Shop
+        Insert: Omit<Shop, "id" | "created_at" | "updated_at">
+        Update: Partial<Omit<Shop, "id">>
+      }
+      Event: {
+        Row: Event
+        Insert: Omit<Event, "id" | "created_at" | "updated_at">
+        Update: Partial<Omit<Event, "id">>
+      }
+      Ticket: {
+        Row: Ticket
+        Insert: Omit<Ticket, "id" | "created_at" | "updated_at">
+        Update: Partial<Omit<Ticket, "id">>
+      }
+    }
+  }
+}

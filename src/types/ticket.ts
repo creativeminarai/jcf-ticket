@@ -12,12 +12,24 @@ export interface HistoryGroup {
   histories: CoffeeHistory[];
 }
 
-export interface Event {
-  id: number;
-  title: string;
+export interface EventDate {
+  id: string;
   date: string;
-  theme: string;
-  imageUrl: string;
+  time: string;
+}
+
+export interface Event {
+  id: string;
+  name: string;
+  theme: string | null;
+  image_url: string | null;
+  event_number: number | null;
+  event_dates: EventDate[];
+  status: string;
+  country?: string;
+  prefecture?: string;
+  city?: string;
+  reception_location?: string;
 }
 
 export interface Shop {
