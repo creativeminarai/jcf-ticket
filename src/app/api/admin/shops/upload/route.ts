@@ -1,6 +1,8 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { createClient } from '@/utils/supabase/server';
+
+// Next.js 15でcookies()関数が非同期になったため、nodejsランタイムを使用
+export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
   try {
@@ -37,7 +39,7 @@ export async function POST(req: Request) {
     const buffer = await file.arrayBuffer();
     
     // Supabaseクライアントを作成
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = await createClient();
     
     // ShopImageバケット（public）にアップロード
     const { data, error } = await supabase.storage

@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import type { Database } from "@/types/database.types";
 
 type PriceSchedule = {
-  price: number;
+  price: string;
   validFrom: string;
   validUntil: string;
 };
@@ -18,18 +19,18 @@ export default function NewTicketPage() {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    category: "前売り券" as TicketCategory,
+    ticket_category: "前売り券" as TicketCategory,
     quantity: 3,
   });
 
   const [priceSchedules, setPriceSchedules] = useState<PriceSchedule[]>([
-    { price: 0, validFrom: "", validUntil: "" },
+    { price: "", validFrom: "", validUntil: "" },
   ]);
 
   const addPriceSchedule = () => {
     setPriceSchedules([
       ...priceSchedules,
-      { price: 0, validFrom: "", validUntil: "" },
+      { price: "", validFrom: "", validUntil: "" },
     ]);
   };
 
@@ -40,14 +41,10 @@ export default function NewTicketPage() {
   const updatePriceSchedule = (
     index: number,
     field: keyof PriceSchedule,
-    value: string | number
+    value: string
   ) => {
     const newSchedules = [...priceSchedules];
-    if (field === "price") {
-      newSchedules[index][field] = value as number;
-    } else {
-      newSchedules[index][field] = value as string;
-    }
+    newSchedules[index][field] = value;
     setPriceSchedules(newSchedules);
   };
 
@@ -55,7 +52,19 @@ export default function NewTicketPage() {
     e.preventDefault();
     
     try {
-      const supabase = createClientComponentClient();
+      // 価格スケジュールのバリデーション - 数値変換を送信時に行う
+      const validPriceSchedules = priceSchedules.filter(
+        schedule => {
+          const priceNum = parseFloat(schedule.price);
+          return !isNaN(priceNum) && priceNum > 0 && schedule.validFrom && schedule.validUntil;
+        }
+      );
+      
+      if (validPriceSchedules.length === 0) {
+        throw new Error('少なくとも1つの有効な価格スケジュールを設定してください');
+      }
+      
+      const supabase = createClientComponentClient<Database>();
       
       // チケット種別の登録
       const { data: ticketData, error: ticketError } = await supabase
@@ -63,7 +72,7 @@ export default function NewTicketPage() {
         .insert({
           title: formData.title,
           description: formData.description,
-          category: formData.category,
+          ticket_category: formData.ticket_category,
           quantity: formData.quantity,
         })
         .select();
@@ -78,28 +87,20 @@ export default function NewTicketPage() {
       
       const ticketTypeId = ticketData[0].id;
       
-      // 価格スケジュールの登録
-      if (priceSchedules.length > 0) {
-        const validPriceSchedules = priceSchedules.filter(
-          schedule => schedule.price > 0 && schedule.validFrom && schedule.validUntil
-        );
-        
-        if (validPriceSchedules.length > 0) {
-          const priceRecords = validPriceSchedules.map(schedule => ({
-            ticket_type_id: ticketTypeId,
-            price: schedule.price,
-            valid_from: schedule.validFrom,
-            valid_until: schedule.validUntil
-          }));
-          
-          const { error: priceError } = await supabase
-            .from('TicketPrice')
-            .insert(priceRecords);
-          
-          if (priceError) {
-            throw new Error(`価格スケジュールの登録に失敗しました: ${priceError.message}`);
-          }
-        }
+      // 価格スケジュールの登録 - 送信時に数値変換
+      const priceRecords = validPriceSchedules.map(schedule => ({
+        ticket_type_id: ticketTypeId,
+        price: parseFloat(schedule.price), // 文字列から数値に変換
+        valid_from: schedule.validFrom,
+        valid_until: schedule.validUntil
+      }));
+      
+      const { error: priceError } = await supabase
+        .from('TicketPrice')
+        .insert(priceRecords);
+      
+      if (priceError) {
+        throw new Error(`価格スケジュールの登録に失敗しました: ${priceError.message}`);
       }
       
       alert('チケット種別を登録しました');
@@ -171,19 +172,19 @@ export default function NewTicketPage() {
 
             <div>
               <label
-                htmlFor="category"
+                htmlFor="ticket_category"
                 className="block text-sm font-medium text-gray-700"
               >
                 カテゴリ
               </label>
               <select
-                id="category"
-                name="category"
-                value={formData.category}
+                id="ticket_category"
+                name="ticket_category"
+                value={formData.ticket_category}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    category: e.target.value as TicketCategory,
+                    ticket_category: e.target.value as TicketCategory,
                   })
                 }
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
@@ -241,20 +242,21 @@ export default function NewTicketPage() {
                 <label className="block text-sm font-medium text-gray-700">
                   価格
                 </label>
-                <div className="mt-1">
+                <div className="mt-1 relative rounded-md shadow-sm">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <span className="text-gray-500 sm:text-sm">¥</span>
+                  </div>
                   <input
                     type="text"
-                    required
-                    value={schedule.price === 0 ? "" : schedule.price}
-                    onChange={(e) => {
-                      // 数値だけを受け付ける
-                      const inputValue = e.target.value;
-                      const numValue = inputValue === "" ? 0 : parseInt(inputValue, 10) || 0;
-                      updatePriceSchedule(index, "price", numValue);
-                    }}
-                    pattern="[0-9]*"
                     inputMode="numeric"
-                    className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+                    pattern="[0-9]*"
+                    placeholder="例: 1000"
+                    value={schedule.price}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^0-9]/g, '');
+                      updatePriceSchedule(index, "price", value);
+                    }}
+                    className="block w-full pl-7 pr-12 py-2 rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
                   />
                 </div>
               </div>

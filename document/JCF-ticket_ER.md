@@ -138,7 +138,6 @@ erDiagram
         text greeting "ご挨拶"
         string roast_level "焙煎度"
         string pr_url "広報URL"
-        <!-- 運命の比重は整数で0から10までの数値 -->
         float destiny_ratio "運命の比重"
         integer ticket_count "チケット枚数"
         string image_url "画像URL"

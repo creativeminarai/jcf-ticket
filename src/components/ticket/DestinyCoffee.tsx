@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Shop } from '@/types/ticket';
 import { CoffeeModal } from './CoffeeModal';
 import { CoffeeStainNumber } from '@/components/ui/CoffeeStainNumber';
@@ -13,6 +13,14 @@ interface DestinyCoffeeProps {
 
 export function DestinyCoffee({ issuedShop, isLoading, onIssueTicket, coffeeShops }: DestinyCoffeeProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // issuedShopが変更されたときにモーダルを表示
+  useEffect(() => {
+    if (issuedShop) {
+      setIsModalOpen(true);
+    }
+  }, [issuedShop]);
+
   return (
     <section className="overflow-hidden rounded-lg bg-gradient-to-b from-white to-gray-50 shadow-xl border border-amber-200">
       {/* ヘッダー部分 */}
@@ -31,10 +39,9 @@ export function DestinyCoffee({ issuedShop, isLoading, onIssueTicket, coffeeShop
             <div className="absolute -top-20 -left-20 w-40 h-40 bg-amber-100 rounded-full blur-xl opacity-50"></div>
             
             <button
-              onClick={() => {
-                onIssueTicket();
-                // チケット発行と同時にモーダルを開く
+              onClick={async () => {
                 setIsModalOpen(true);
+                await onIssueTicket();
               }}
               disabled={isLoading}
               className="w-full bg-amber-600 hover:bg-amber-700 text-white px-6 py-4 rounded-md transition-colors font-medium tracking-wide shadow-sm"
@@ -105,7 +112,7 @@ export function DestinyCoffee({ issuedShop, isLoading, onIssueTicket, coffeeShop
       
       {/* くじ引きモーダル */}
       <CoffeeModal
-        isOpen={isModalOpen && issuedShop !== null}
+        isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         selectedShop={issuedShop}
       />

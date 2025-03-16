@@ -61,6 +61,26 @@ export type Ticket = {
   updated_at?: string;
 };
 
+export type TicketType = {
+  id: string;
+  title: string;
+  description: string;
+  ticket_category: "当日券" | "前売り券" | "追加券";
+  quantity: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type TicketPrice = {
+  id: string;
+  ticket_type_id: string;
+  price: number;
+  valid_from: string;
+  valid_until: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
 // Supabase
 export type Json =
   | string
@@ -87,6 +107,16 @@ export type Database = {
         Row: Ticket
         Insert: Omit<Ticket, "id" | "created_at" | "updated_at">
         Update: Partial<Omit<Ticket, "id">>
+      }
+      TicketType: {
+        Row: TicketType
+        Insert: Omit<TicketType, "id" | "created_at" | "updated_at">
+        Update: Partial<Omit<TicketType, "id">>
+      }
+      TicketPrice: {
+        Row: TicketPrice
+        Insert: Omit<TicketPrice, "id" | "created_at" | "updated_at">
+        Update: Partial<Omit<TicketPrice, "id">>
       }
     }
   }

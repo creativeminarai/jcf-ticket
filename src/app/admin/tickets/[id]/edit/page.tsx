@@ -2,9 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import type { Database } from "@/types/database.types";
 
 type PriceSchedule = {
-  price: number;
+  id?: string; // 既存の価格スケジュールにはIDがある
+  price: string;
   validFrom: string;
   validUntil: string;
 };
@@ -16,25 +19,8 @@ type TicketType = {
   id: string;
   title: string;
   description: string;
-  category: TicketCategory;
+  ticket_category: TicketCategory;
   quantity: number;
-  priceSchedules: PriceSchedule[];
-};
-
-// TODO: APIから実データを取得するように修正
-const mockTicket: TicketType = {
-  id: "1",
-  title: "当日3枚券",
-  description: "当日購入可能な3枚セットチケット",
-  category: "当日券",
-  quantity: 3,
-  priceSchedules: [
-    {
-      price: 3000,
-      validFrom: "2025-04-01T00:00",
-      validUntil: "2025-04-02T23:59",
-    },
-  ],
 };
 
 import React from 'react';
@@ -49,35 +35,90 @@ export default function EditTicketPage({ params }: { params: Promise<{ id: strin
 
 function EditTicketContent({ ticketId }: { ticketId: string }) {
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    category: "前売り券" as TicketCategory,
+    ticket_category: "前売り券" as TicketCategory,
     quantity: 3,
   });
 
   const [priceSchedules, setPriceSchedules] = useState<PriceSchedule[]>([
-    { price: 0, validFrom: "", validUntil: "" },
+    { price: "", validFrom: "", validUntil: "" },
   ]);
 
+  // Supabaseクライアントの初期化
+  const supabase = createClientComponentClient<Database>();
+
+  // チケット種別データの取得
   useEffect(() => {
-    // TODO: APIからチケット種別データを取得
-    // 実際のAPI実装では、ticketIdを使用してデータを取得する
-    console.log('チケットID:', ticketId);
-    const ticket = mockTicket; // 実際にはAPIから取得
-    setFormData({
-      title: ticket.title,
-      description: ticket.description,
-      category: ticket.category,
-      quantity: ticket.quantity,
-    });
-    setPriceSchedules(ticket.priceSchedules);
-  }, [ticketId]);
+    const fetchTicketData = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        // TicketTypeテーブルからデータを取得
+        const { data: ticketData, error: ticketError } = await supabase
+          .from('TicketType')
+          .select('*')
+          .eq('id', ticketId)
+          .single();
+        
+        if (ticketError) {
+          throw new Error(`チケットデータの取得に失敗しました: ${ticketError.message}`);
+        }
+        
+        if (!ticketData) {
+          throw new Error('チケットデータが見つかりませんでした');
+        }
+        
+        // フォームデータを設定
+        setFormData({
+          title: ticketData.title,
+          description: ticketData.description || "",
+          ticket_category: ticketData.ticket_category as TicketCategory,
+          quantity: ticketData.quantity,
+        });
+        
+        // TicketPriceテーブルからデータを取得
+        const { data: priceData, error: priceError } = await supabase
+          .from('TicketPrice')
+          .select('*')
+          .eq('ticket_type_id', ticketId);
+        
+        if (priceError) {
+          throw new Error(`価格データの取得に失敗しました: ${priceError.message}`);
+        }
+        
+        // 価格スケジュールを設定
+        if (priceData && priceData.length > 0) {
+          const formattedPriceSchedules = priceData.map(price => ({
+            id: price.id,
+            price: price.price.toString(),
+            validFrom: price.valid_from,
+            validUntil: price.valid_until,
+          }));
+          setPriceSchedules(formattedPriceSchedules);
+        } else {
+          // 価格データがない場合は空の価格スケジュールを設定
+          setPriceSchedules([{ price: "", validFrom: "", validUntil: "" }]);
+        }
+      } catch (err) {
+        console.error('データ取得エラー:', err);
+        setError(err instanceof Error ? err.message : '予期せぬエラーが発生しました');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchTicketData();
+  }, [ticketId, supabase]);
 
   const addPriceSchedule = () => {
     setPriceSchedules([
       ...priceSchedules,
-      { price: 0, validFrom: "", validUntil: "" },
+      { price: "", validFrom: "", validUntil: "" },
     ]);
   };
 
@@ -88,97 +129,206 @@ function EditTicketContent({ ticketId }: { ticketId: string }) {
   const updatePriceSchedule = (
     index: number,
     field: keyof PriceSchedule,
-    value: string | number
+    value: string
   ) => {
     const newSchedules = [...priceSchedules];
-    if (field === "price") {
-      newSchedules[index][field] = value as number;
-    } else {
-      newSchedules[index][field] = value as string;
-    }
+    newSchedules[index][field] = value;
     setPriceSchedules(newSchedules);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: APIを呼び出してチケット種別を更新
-    console.log({ id: ticketId, ...formData, priceSchedules });
-    router.push("/admin/tickets");
+    
+    try {
+      setLoading(true);
+      
+      // 価格スケジュールのバリデーション
+      const validPriceSchedules = priceSchedules.filter(
+        schedule => {
+          const priceNum = parseFloat(schedule.price);
+          return !isNaN(priceNum) && priceNum > 0 && schedule.validFrom && schedule.validUntil;
+        }
+      );
+      
+      if (validPriceSchedules.length === 0) {
+        throw new Error('少なくとも1つの有効な価格スケジュールを設定してください');
+      }
+      
+      // チケット種別の更新
+      const { error: ticketError } = await supabase
+        .from('TicketType')
+        .update({
+          title: formData.title,
+          description: formData.description,
+          ticket_category: formData.ticket_category,
+          quantity: formData.quantity,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', ticketId);
+      
+      if (ticketError) {
+        throw new Error(`チケット種別の更新に失敗しました: ${ticketError.message}`);
+      }
+      
+      // 既存の価格スケジュールを取得
+      const { data: existingPrices, error: fetchError } = await supabase
+        .from('TicketPrice')
+        .select('id')
+        .eq('ticket_type_id', ticketId);
+      
+      if (fetchError) {
+        throw new Error(`既存の価格データの取得に失敗しました: ${fetchError.message}`);
+      }
+      
+      // 既存のIDのリスト
+      const existingIds = existingPrices?.map(p => p.id) || [];
+      
+      // 更新対象と新規追加対象を分ける
+      const toUpdate = validPriceSchedules.filter(p => p.id && existingIds.includes(p.id));
+      const toInsert = validPriceSchedules.filter(p => !p.id);
+      
+      // 削除対象のIDを特定（既存のIDのうち、更新対象に含まれていないもの）
+      const updateIds = toUpdate.map(p => p.id);
+      const toDeleteIds = existingIds.filter(id => !updateIds.includes(id));
+      
+      // 更新処理
+      for (const schedule of toUpdate) {
+        const { error } = await supabase
+          .from('TicketPrice')
+          .update({
+            price: parseFloat(schedule.price),
+            valid_from: schedule.validFrom,
+            valid_until: schedule.validUntil,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', schedule.id);
+        
+        if (error) {
+          throw new Error(`価格スケジュールの更新に失敗しました: ${error.message}`);
+        }
+      }
+      
+      // 新規追加処理
+      if (toInsert.length > 0) {
+        const insertData = toInsert.map(schedule => ({
+          ticket_type_id: ticketId,
+          price: parseFloat(schedule.price),
+          valid_from: schedule.validFrom,
+          valid_until: schedule.validUntil,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }));
+        
+        const { error } = await supabase
+          .from('TicketPrice')
+          .insert(insertData);
+        
+        if (error) {
+          throw new Error(`価格スケジュールの追加に失敗しました: ${error.message}`);
+        }
+      }
+      
+      // 削除処理
+      if (toDeleteIds.length > 0) {
+        const { error } = await supabase
+          .from('TicketPrice')
+          .delete()
+          .in('id', toDeleteIds);
+        
+        if (error) {
+          throw new Error(`価格スケジュールの削除に失敗しました: ${error.message}`);
+        }
+      }
+      
+      alert('チケット種別を更新しました');
+      router.push("/admin/tickets");
+    } catch (error) {
+      if (error instanceof Error) {
+        alert(`エラーが発生しました: ${error.message}`);
+      } else {
+        alert('予期せぬエラーが発生しました');
+      }
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-gray-900">
-          チケット種別編集
-        </h1>
-        <p className="mt-2 text-sm text-gray-700">
-          チケット種別の情報を編集してください
-        </p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-8">
-        {/* チケット基本情報 */}
-        <div className="space-y-6 bg-white p-6 shadow sm:rounded-lg">
-          <h2 className="text-lg font-medium text-gray-900">基本情報</h2>
-          <div className="space-y-4">
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-6">チケット種別編集</h1>
+      
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
+        </div>
+      ) : error ? (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <p>{error}</p>
+          <button 
+            className="mt-2 bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+            onClick={() => router.push("/admin/tickets")}
+          >
+            チケット一覧に戻る
+          </button>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label
-                htmlFor="title"
-                className="block text-sm font-medium text-gray-700"
-              >
-                チケット名
+              <label htmlFor="title" className="block text-sm font-medium text-gray-700">
+                タイトル
               </label>
               <input
                 type="text"
-                name="title"
                 id="title"
-                required
+                name="title"
                 value={formData.title}
                 onChange={(e) =>
                   setFormData({ ...formData, title: e.target.value })
                 }
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                required
               />
             </div>
 
             <div>
-              <label
-                htmlFor="description"
-                className="block text-sm font-medium text-gray-700"
-              >
-                説明
+              <label htmlFor="quantity" className="block text-sm font-medium text-gray-700">
+                枚数
               </label>
-              <textarea
-                name="description"
-                id="description"
-                rows={3}
-                value={formData.description}
+              <input
+                type="number"
+                id="quantity"
+                name="quantity"
+                min="1"
+                value={formData.quantity}
                 onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
+                  setFormData({
+                    ...formData,
+                    quantity: parseInt(e.target.value) || 1,
+                  })
                 }
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                required
               />
             </div>
 
             <div>
-              <label
-                htmlFor="category"
-                className="block text-sm font-medium text-gray-700"
-              >
+              <label htmlFor="category" className="block text-sm font-medium text-gray-700">
                 カテゴリ
               </label>
               <select
                 id="category"
                 name="category"
-                value={formData.category}
+                value={formData.ticket_category}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    category: e.target.value as TicketCategory,
+                    ticket_category: e.target.value as TicketCategory,
                   })
                 }
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                required
               >
                 {TICKET_CATEGORIES.map((category) => (
                   <option key={category} value={category}>
@@ -188,134 +338,126 @@ function EditTicketContent({ ticketId }: { ticketId: string }) {
               </select>
             </div>
 
-            <div>
-              <label
-                htmlFor="quantity"
-                className="block text-sm font-medium text-gray-700"
-              >
-                枚数（セット数）
+            <div className="md:col-span-2">
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+                説明
               </label>
-              <input
-                type="number"
-                name="quantity"
-                id="quantity"
-                min="1"
-                required
-                value={formData.quantity}
+              <textarea
+                id="description"
+                name="description"
+                value={formData.description}
                 onChange={(e) =>
-                  setFormData({ ...formData, quantity: parseInt(e.target.value) })
+                  setFormData({ ...formData, description: e.target.value })
                 }
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+                rows={3}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
               />
             </div>
           </div>
-        </div>
 
-        {/* 価格スケジュール */}
-        <div className="space-y-6 bg-white p-6 shadow sm:rounded-lg">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-medium text-gray-900">価格スケジュール</h2>
-            <button
-              type="button"
-              onClick={addPriceSchedule}
-              className="inline-flex items-center rounded-md border border-transparent bg-indigo-100 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-200"
-            >
-              価格を追加
-            </button>
-          </div>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold">価格スケジュール</h2>
+              <button
+                type="button"
+                onClick={addPriceSchedule}
+                className="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm"
+              >
+                + 追加
+              </button>
+            </div>
 
-          {priceSchedules.map((schedule, index) => (
-            <div
-              key={index}
-              className="grid grid-cols-1 gap-4 border-t border-gray-200 pt-4 first:border-t-0 first:pt-0 sm:grid-cols-4"
-            >
-              <div className="sm:col-span-1">
-                <label className="block text-sm font-medium text-gray-700">
-                  価格
-                </label>
-                <div className="mt-1">
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    value={schedule.price}
-                    onChange={(e) =>
-                      updatePriceSchedule(
-                        index,
-                        "price",
-                        parseInt(e.target.value)
-                      )
-                    }
-                    className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
-                  />
+            {priceSchedules.map((schedule, index) => (
+              <div
+                key={index}
+                className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-md bg-gray-50"
+              >
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    価格
+                  </label>
+                  <div className="mt-1 relative rounded-md shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <span className="text-gray-500 sm:text-sm">¥</span>
+                    </div>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      placeholder="例: 1000"
+                      value={schedule.price}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/[^0-9]/g, '');
+                        updatePriceSchedule(index, "price", value);
+                      }}
+                      className="block w-full pl-7 pr-12 py-2 rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="sm:col-span-1">
-                <label className="block text-sm font-medium text-gray-700">
-                  開始日時
-                </label>
-                <div className="mt-1">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    有効期間開始
+                  </label>
                   <input
                     type="datetime-local"
-                    required
                     value={schedule.validFrom}
                     onChange={(e) =>
                       updatePriceSchedule(index, "validFrom", e.target.value)
                     }
-                    className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                   />
                 </div>
-              </div>
 
-              <div className="sm:col-span-1">
-                <label className="block text-sm font-medium text-gray-700">
-                  終了日時
-                </label>
-                <div className="mt-1">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    有効期間終了
+                  </label>
                   <input
                     type="datetime-local"
-                    required
                     value={schedule.validUntil}
                     onChange={(e) =>
                       updatePriceSchedule(index, "validUntil", e.target.value)
                     }
-                    className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                   />
                 </div>
-              </div>
 
-              {priceSchedules.length > 1 && (
-                <div className="flex items-end sm:col-span-1">
-                  <button
-                    type="button"
-                    onClick={() => removePriceSchedule(index)}
-                    className="rounded-md border border-transparent bg-red-100 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-200"
-                  >
-                    削除
-                  </button>
+                <div className="flex items-end">
+                  {priceSchedules.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removePriceSchedule(index)}
+                      className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+                    >
+                      削除
+                    </button>
+                  )}
                 </div>
-              )}
-            </div>
-          ))}
-        </div>
+              </div>
+            ))}
+          </div>
 
-        <div className="flex justify-end space-x-4">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-          >
-            キャンセル
-          </button>
-          <button
-            type="submit"
-            className="rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700"
-          >
-            更新
-          </button>
-        </div>
-      </form>
+          <div className="flex justify-between">
+            <button
+              type="button"
+              onClick={() => router.push("/admin/tickets")}
+              className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
+            >
+              キャンセル
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className={`${
+                loading ? "bg-indigo-300" : "bg-indigo-500 hover:bg-indigo-700"
+              } text-white font-bold py-2 px-4 rounded`}
+            >
+              {loading ? "更新中..." : "更新する"}
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   );
 }

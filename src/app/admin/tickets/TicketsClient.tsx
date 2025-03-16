@@ -5,20 +5,15 @@ import { useState } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import type { Database } from "@/types/database.types";
 
-type TicketWithEvent = {
+// TicketTypeテーブルから取得されるデータの型
+type TicketType = {
   id: string;
-  name: string;
+  title: string;
   description: string;
-  price: number;
+  ticket_category: string;
   quantity: number;
-  event_id: string;
-  status: "available" | "sold_out" | "closed";
   created_at?: string;
   updated_at?: string;
-  events: {
-    name: string;
-    status: "draft" | "published" | "closed";
-  };
 };
 
 const STATUS_MAP = {
@@ -30,9 +25,9 @@ const STATUS_MAP = {
 export function TicketsClient({ 
   initialTickets 
 }: { 
-  initialTickets: TicketWithEvent[] 
+  initialTickets: TicketType[] 
 }) {
-  const [tickets, setTickets] = useState<TicketWithEvent[]>(initialTickets);
+  const [tickets, setTickets] = useState<TicketType[]>(initialTickets);
   const supabase = createClientComponentClient<Database>();
 
   const formatPrice = (price: number) => {
@@ -42,10 +37,12 @@ export function TicketsClient({
     }).format(price);
   };
 
-  const handleStatusChange = async (ticketId: string, newStatus: TicketWithEvent["status"]) => {
+  // 現在は使用しないため、コメントアウト
+  /*
+  const handleStatusChange = async (ticketId: string, newStatus: string) => {
     try {
       const { error } = await supabase
-        .from("tickets")
+        .from("TicketType")
         .update({ status: newStatus })
         .eq("id", ticketId);
 
@@ -61,6 +58,7 @@ export function TicketsClient({
       alert("ステータスの更新に失敗しました");
     }
   };
+  */
 
   return (
     <div>
@@ -98,25 +96,13 @@ export function TicketsClient({
                       scope="col"
                       className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
                     >
-                      イベント
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      価格
+                      カテゴリ
                     </th>
                     <th
                       scope="col"
                       className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
                     >
                       数量
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      ステータス
                     </th>
                     <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
                       <span className="sr-only">操作</span>
@@ -127,30 +113,14 @@ export function TicketsClient({
                   {tickets.map((ticket) => (
                     <tr key={ticket.id}>
                       <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
-                        <div className="font-medium text-gray-900">{ticket.name}</div>
+                        <div className="font-medium text-gray-900">{ticket.title}</div>
                         <div className="text-gray-500">{ticket.description}</div>
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {ticket.events.name}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {formatPrice(ticket.price)}
+                        {ticket.ticket_category}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                         {ticket.quantity}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm">
-                        <select
-                          value={ticket.status}
-                          onChange={(e) => handleStatusChange(ticket.id, e.target.value as TicketWithEvent["status"])}
-                          className={`rounded-full px-2 py-1 text-xs font-semibold ${STATUS_MAP[ticket.status].className}`}
-                        >
-                          {Object.entries(STATUS_MAP).map(([value, { label }]) => (
-                            <option key={value} value={value}>
-                              {label}
-                            </option>
-                          ))}
-                        </select>
                       </td>
                       <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                         <Link
