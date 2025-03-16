@@ -1,87 +1,3 @@
-export type Shop = {
-  id: string;
-  shop_code: string;
-  shop_name: string;
-  coffee_name: string;
-  greeting: string;
-  roast_level: string;
-  pr_url: string;
-  destiny_ratio: number;
-  ticket_count: number;
-  image_url: string | null;
-  notes: string;
-  created_at?: string;
-  updated_at?: string;
-};
-
-export type Event = {
-  id: string;
-  name: string;
-  theme?: string;
-  event_venue_id?: string;
-  status?: "draft" | "published" | "closed";
-  event_url?: string;
-  image_url?: string;
-  event_number?: number;
-  deleted_at?: string | null;
-  EventDate?: EventDate[]; // イベント日付の配列
-};
-
-export type EventVenue = {
-  id: string;
-  country: string;
-  prefecture: string;
-  city: string;
-  reception_location: string;
-  deleted_at?: string | null;
-};
-
-export type EventDate = {
-  id: string;
-  date: string;
-  time: string;
-  event_id: string;
-  deleted_at?: string | null;
-};
-
-export type EventWithDates = Event & {
-  EventVenue?: EventVenue;
-  EventDate?: EventDate;
-};
-
-export type Ticket = {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  quantity: number;
-  event_id: string;
-  status: "available" | "sold_out" | "closed";
-  created_at?: string;
-  updated_at?: string;
-};
-
-export type TicketType = {
-  id: string;
-  title: string;
-  description: string;
-  ticket_category: "当日券" | "前売り券" | "追加券";
-  quantity: number;
-  created_at?: string;
-  updated_at?: string;
-};
-
-export type TicketPrice = {
-  id: string;
-  ticket_type_id: string;
-  price: number;
-  valid_from: string;
-  valid_until: string;
-  created_at?: string;
-  updated_at?: string;
-};
-
-// Supabase
 export type Json =
   | string
   | number
@@ -90,34 +6,310 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type Database = {
+export interface Database {
   public: {
     Tables: {
-      Shop: {
-        Row: Shop
-        Insert: Omit<Shop, "id" | "created_at" | "updated_at">
-        Update: Partial<Omit<Shop, "id">>
+      AllStoreTicket: {
+        Row: {
+          id: string
+          event_id: string
+          user_id: string
+          shop_id: string | null
+          used_at: string | null
+          deleted_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          user_id: string
+          shop_id?: string | null
+          used_at?: string | null
+          deleted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          user_id?: string
+          shop_id?: string | null
+          used_at?: string | null
+          deleted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
       }
       Event: {
-        Row: Event
-        Insert: Omit<Event, "id" | "created_at" | "updated_at">
-        Update: Partial<Omit<Event, "id">>
+        Row: {
+          id: string
+          name: string
+          theme: string | null
+          status: string
+          image_url: string | null
+          event_url: string | null
+          event_number: number | null
+          deleted_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          theme?: string | null
+          status?: string
+          image_url?: string | null
+          event_url?: string | null
+          event_number?: number | null
+          deleted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          theme?: string | null
+          status?: string
+          image_url?: string | null
+          event_url?: string | null
+          event_number?: number | null
+          deleted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
       }
-      Ticket: {
-        Row: Ticket
-        Insert: Omit<Ticket, "id" | "created_at" | "updated_at">
-        Update: Partial<Omit<Ticket, "id">>
+      EventDate: {
+        Row: {
+          id: string
+          event_id: string
+          date: string
+          time: string
+          deleted_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          date: string
+          time: string
+          deleted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          date?: string
+          time?: string
+          deleted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      PurchaseHistory: {
+        Row: {
+          id: string
+          event_id: string
+          user_id: string
+          ticket_type_id: string
+          purchase_date: string
+          quantity: number
+          payment_id: string
+          deleted_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          user_id: string
+          ticket_type_id: string
+          purchase_date: string
+          quantity: number
+          payment_id: string
+          deleted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          user_id?: string
+          ticket_type_id?: string
+          purchase_date?: string
+          quantity?: number
+          payment_id?: string
+          deleted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      Shop: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          image_url: string | null
+          shop_code?: string
+          shop_name?: string
+          coffee_name?: string
+          greeting?: string | null
+          roast_level?: string
+          pr_url?: string | null
+          destiny_ratio?: number
+          ticket_count?: number
+          notes?: string | null
+          deleted_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          image_url?: string | null
+          shop_code?: string
+          shop_name?: string
+          coffee_name?: string
+          greeting?: string | null
+          roast_level?: string
+          pr_url?: string | null
+          destiny_ratio?: number
+          ticket_count?: number
+          notes?: string | null
+          deleted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          image_url?: string | null
+          shop_code?: string
+          shop_name?: string
+          coffee_name?: string
+          greeting?: string | null
+          roast_level?: string
+          pr_url?: string | null
+          destiny_ratio?: number
+          ticket_count?: number
+          notes?: string | null
+          deleted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
       }
       TicketType: {
-        Row: TicketType
-        Insert: Omit<TicketType, "id" | "created_at" | "updated_at">
-        Update: Partial<Omit<TicketType, "id">>
+        Row: {
+          id: string
+          name: string
+          ticket_category: string
+          description: string | null
+          deleted_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          ticket_category: string
+          description?: string | null
+          deleted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          ticket_category?: string
+          description?: string | null
+          deleted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
       }
       TicketPrice: {
-        Row: TicketPrice
-        Insert: Omit<TicketPrice, "id" | "created_at" | "updated_at">
-        Update: Partial<Omit<TicketPrice, "id">>
+        Row: {
+          id: string
+          ticket_type_id: string
+          price: number
+          valid_from: string
+          valid_until: string | null
+          deleted_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          ticket_type_id: string
+          price: number
+          valid_from: string
+          valid_until?: string | null
+          deleted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          ticket_type_id?: string
+          price?: number
+          valid_from?: string
+          valid_until?: string | null
+          deleted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
       }
+      users: {
+        Row: {
+          id: string
+          email: string
+          name: string | null
+          avatar_url: string | null
+          deleted_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          email: string
+          name?: string | null
+          avatar_url?: string | null
+          deleted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string
+          name?: string | null
+          avatar_url?: string | null
+          deleted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
     }
   }
 }
+
+export type EventWithDates = Database['public']['Tables']['Event']['Row'] & {
+  EventDate: Database['public']['Tables']['EventDate']['Row'][]
+}
+
+export type Tables = Database['public']['Tables']

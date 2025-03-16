@@ -84,7 +84,9 @@ CREATE TABLE IF NOT EXISTS "PurchaseHistory" (
     purchase_date TIMESTAMP NOT NULL,
     quantity INTEGER NOT NULL,
     payment_id VARCHAR,
-    deleted_at TIMESTAMP
+    deleted_at TIMESTAMP,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
 -- AllStoreTicket テーブル
@@ -183,9 +185,14 @@ CREATE POLICY "ユーザーは自分の購入履歴のみ閲覧可能"
 ON "PurchaseHistory" FOR SELECT 
 USING (auth.uid() = user_id);
 
--- 自分の購入履歴のみ操作可能にする
-CREATE POLICY "ユーザーは自分の購入履歴のみ操作可能" 
-ON "PurchaseHistory" FOR ALL
+-- 購入履歴の挿入を許可
+CREATE POLICY "購入履歴の挿入を許可"
+ON "PurchaseHistory" FOR INSERT
+WITH CHECK (true);
+
+-- 自分の購入履歴のみ更新・削除可能にする
+CREATE POLICY "ユーザーは自分の購入履歴のみ更新・削除可能" 
+ON "PurchaseHistory" FOR UPDATE DELETE
 USING (auth.uid() = user_id);
 
 -- AllStoreTicketのRLS

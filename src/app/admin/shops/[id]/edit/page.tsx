@@ -1,13 +1,24 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { Shop, Event } from "@/types/database.types";
+import type { Database } from "@/types/database.types";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import React from "react";
+import type { ShopAttendance } from "@/types/shopAttendance";
 
 // クライアントコンポーネントをインポートするための境界コンポーネントをインポート
 import ClientBoundary from "./ClientBoundary";
 
-export default async function EditShopPage({ params }: { params: { id: string } }) {
-  const shopId = params.id;
+// 型定義
+type Shop = Database['public']['Tables']['Shop']['Row'];
+type EventDate = Database['public']['Tables']['EventDate']['Row'];
+type Event = Database['public']['Tables']['Event']['Row'] & {
+  EventDate: EventDate[]
+};
+
+export default async function EditShopPage({ params }: { params: Promise<{ id: string }> }) {
+  // paramsをawaitしてから使用する
+  const unwrappedParams = await params;
+  const shopId = unwrappedParams.id;
 
   // 出店者情報を取得
   let shop: Shop | null = null;
@@ -43,10 +54,41 @@ export default async function EditShopPage({ params }: { params: { id: string } 
       } else if (eventsData) {
         events = eventsData as Event[];
         
-        // 現在データベース設計ではShopとEventの関連を取得する方法がないため
-        // 仮に最初のイベントを関連イベントとして設定
-        if (events.length > 0) {
+        // ShopAttendanceテーブルから出店情報を取得
+        const { data: shopAttendances, error: attendanceError } = await supabase
+          .from("ShopAttendance")
+          .select("*")
+          .eq("shop_id", shopId)
+          .is("deleted_at", null);
+          
+        if (attendanceError) {
+          console.error("Error fetching shop attendances:", attendanceError.message);
+        } else if (shopAttendances && shopAttendances.length > 0) {
+          // 最初の出店情報からイベント日程IDを取得
+          const eventDateId = shopAttendances[0].event_date_id;
+          
+          // イベント日程からイベントIDを取得
+          const { data: eventDateData, error: eventDateError } = await supabase
+            .from("EventDate")
+            .select("event_id")
+            .eq("id", eventDateId)
+            .single();
+            
+          if (eventDateError) {
+            console.error("Error fetching event date:", eventDateError.message);
+          } else if (eventDateData) {
+            const eventId = eventDateData.event_id;
+            
+            // 関連するイベントを検索
+            event = events.find(e => e.id === eventId) || null;
+            console.log("Found related event:", event?.name);
+          }
+        }
+        
+        // 関連するイベントが見つからない場合は最初のイベントを使用
+        if (!event && events.length > 0) {
           event = events[0];
+          console.log("Using default event:", event.name);
         }
       }
     }

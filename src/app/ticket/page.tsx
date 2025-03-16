@@ -99,7 +99,7 @@ const dummyEvents = [
     prefecture: "滋賀県",
     city: "日野町",
     reception_location: "日野町文化センター",
-    event_dates: [{ id: "1", date: "2025-03-08", time: "10:00〜16:00" }]
+    EventDate: [{ id: "1", date: "2025-03-08", time: "10:00〜16:00" }]
   },
   {
     id: "2",
@@ -111,7 +111,7 @@ const dummyEvents = [
     prefecture: "鳥取県",
     city: "倉吉市",
     reception_location: "倉吉市文化センター",
-    event_dates: [{ id: "2", date: "2025-03-22", time: "10:00〜16:00" }]
+    EventDate: [{ id: "2", date: "2025-03-22", time: "10:00〜16:00" }]
   },
 ];
 
@@ -202,7 +202,7 @@ function TicketContent() {
           prefecture: venue.prefecture || '',
           city: venue.city || '',
           reception_location: venue.reception_location || '',
-          event_dates: eventDates
+          EventDate: eventDates
         };
 
         setEvent(formattedEvent);

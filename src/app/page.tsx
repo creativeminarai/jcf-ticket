@@ -4,6 +4,10 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import type { Database } from "@/types/database.types";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { UserAuthMenu } from "@/components/nav/UserAuthMenu";
+import { useAuth } from "@/contexts/AuthContext";
+import { getStripe } from "@/lib/stripe";
+import Link from "next/link";
 
 interface EventDate {
   id: string;
@@ -26,6 +30,75 @@ export default function Home() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [purchasedEvents, setPurchasedEvents] = useState<Set<string>>(new Set());
+  const { user } = useAuth();
+  const [paymentStatus, setPaymentStatus] = useState<'success' | 'canceled' | null>(null);
+
+  // URLパラメータからpayment_statusを取得
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('success')) {
+      setPaymentStatus('success');
+      // URLからパラメータを削除（履歴に残さない）
+      url.searchParams.delete('success');
+      url.searchParams.delete('session_id');
+      window.history.replaceState({}, '', url.toString());
+      
+      // 成功メッセージを表示した後、ステータスをクリア
+      setTimeout(() => {
+        setPaymentStatus(null);
+        // 購入履歴を更新
+        if (user) {
+          console.log("決済成功後に購入履歴を更新します");
+          fetchPurchaseHistory(user.id);
+        }
+      }, 5000);
+    } else if (url.searchParams.has('canceled')) {
+      setPaymentStatus('canceled');
+      // URLからパラメータを削除（履歴に残さない）
+      url.searchParams.delete('canceled');
+      window.history.replaceState({}, '', url.toString());
+      
+      // キャンセルメッセージを表示した後、ステータスをクリア
+      setTimeout(() => {
+        setPaymentStatus(null);
+      }, 5000);
+    }
+  }, [user]);
+
+  // 購入履歴を取得する関数
+  const fetchPurchaseHistory = async (userId: string) => {
+    try {
+      console.log("購入履歴を取得中...", userId);
+      const { data, error } = await supabaseBrowser
+        .from("PurchaseHistory")
+        .select("event_id")
+        .eq("user_id", userId)
+        .is("deleted_at", null);
+        
+      if (error) {
+        console.error("購入履歴の取得に失敗しました:", error);
+        return;
+      }
+      
+      if (data && data.length > 0) {
+        const purchasedEventIds = new Set(data.map(purchase => purchase.event_id));
+        console.log("購入済みイベント:", purchasedEventIds);
+        setPurchasedEvents(purchasedEventIds);
+      } else {
+        console.log("購入履歴がありません");
+        setPurchasedEvents(new Set());
+      }
+    } catch (error) {
+      console.error("購入履歴の取得中にエラーが発生しました:", error);
+    }
+  };
+
+  // 購入履歴を取得
+  useEffect(() => {
+    if (user) {
+      fetchPurchaseHistory(user.id);
+    }
+  }, [user]);
 
   useEffect(() => {
     async function fetchEvents() {
@@ -45,7 +118,7 @@ export default function Home() {
             event_number
           `)
           .is("deleted_at", null)
-          .order('event_number', { ascending: false });
+          .eq("status", "published"); // 公開中のイベントのみ取得
 
         if (eventsError) {
           console.error("イベントデータ取得エラー:", eventsError);
@@ -104,7 +177,29 @@ export default function Home() {
           };
         });
 
-        setEvents(formattedEvents);
+        // イベントを開催日初日の昇順でソート
+        const sortedEvents = formattedEvents.sort((a, b) => {
+          // 各イベントの開始日を取得
+          const getStartDate = (event: Event) => {
+            if (!event.EventDate || event.EventDate.length === 0) {
+              return new Date(8640000000000000); // 遠い未来の日付（日付不明の場合は最後に表示）
+            }
+            
+            // 日付を日付順にソート
+            const sortedDates = [...event.EventDate].sort((a, b) => {
+              return new Date(a.date).getTime() - new Date(b.date).getTime();
+            });
+            
+            return new Date(sortedDates[0].date);
+          };
+          
+          const aStartDate = getStartDate(a);
+          const bStartDate = getStartDate(b);
+          
+          return aStartDate.getTime() - bStartDate.getTime();
+        });
+
+        setEvents(sortedEvents);
       } catch (error) {
         console.error("イベントの取得に失敗しました:", error);
         // エラー状態を表示するためのステート更新などを追加できます
@@ -116,8 +211,47 @@ export default function Home() {
     fetchEvents();
   }, []);
 
-  const handlePurchase = (id: string) => {
-    setPurchasedEvents(prev => new Set([...prev, id]));
+  const handlePurchase = async (eventId: string, eventName: string) => {
+    // 購入処理（Stripe連携）
+    try {
+      if (!user) {
+        // ログインしていない場合はログインページにリダイレクト
+        alert("購入するにはログインが必要です");
+        window.location.href = "/auth/login";
+        return;
+      }
+
+      // 通常の購入処理（Stripe連携）続行
+      // チェックアウトセッション作成をAPIに依頼
+      const response = await fetch("/api/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          eventId,
+          eventName,
+          ticketPrice: 1800, // 固定価格（本来は動的に設定）
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "決済の準備に失敗しました");
+      }
+      
+      const { url } = await response.json();
+      
+      // StripeのCheckoutページにリダイレクト
+      if (url) {
+        window.location.href = url;
+      } else {
+        throw new Error("決済画面のURLが取得できませんでした");
+      }
+    } catch (error) {
+      console.error("購入処理中にエラーが発生しました:", error);
+      alert("購入処理に失敗しました。もう一度お試しください。");
+    }
   };
 
   if (loading) {
@@ -145,16 +279,34 @@ export default function Home() {
       {/* ヘッダー */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
-          <Image
-            className="mx-auto"
-            src="/logo.png"
-            alt="Japan Coffee Festival Logo"
-            width={260}
-            height={65}
-            priority
-          />
+          <div className="flex justify-between items-center">
+            <Image
+              className=""
+              src="/logo.png"
+              alt="Japan Coffee Festival Logo"
+              width={260}
+              height={65}
+              priority
+            />
+            <UserAuthMenu />
+          </div>
         </div>
       </header>
+
+      {/* 決済ステータスメッセージ */}
+      {paymentStatus && (
+        <div className={`p-4 ${paymentStatus === 'success' ? 'bg-green-100' : 'bg-amber-100'} text-center`}>
+          {paymentStatus === 'success' ? (
+            <p className="text-green-800 font-medium">
+              決済が完了しました！「チケット発行へ」からチケットを発行できます。
+            </p>
+          ) : (
+            <p className="text-amber-800 font-medium">
+              決済がキャンセルされました。
+            </p>
+          )}
+        </div>
+      )}
 
       {/* メインコンテンツ */}
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
@@ -211,7 +363,7 @@ export default function Home() {
                     {event.status === 'published' && (
                       !purchasedEvents.has(event.id) ? (
                         <button
-                          onClick={() => handlePurchase(event.id)}
+                          onClick={() => handlePurchase(event.id, event.name)}
                           className="w-full text-white px-4 py-2 rounded-md hover:opacity-90 transition-colors font-noto-serif font-medium"
                           style={{ background: 'linear-gradient(135deg, hsl(222.2, 47.4%, 11.20%), hsl(222.2, 47.4%, 15.20%))' }}
                         >
@@ -226,14 +378,14 @@ export default function Home() {
                           >
                             購入済み
                           </button>
-                          <a href={`/ticket?event=${event.id}`}>
+                          <Link href={`/ticket?event=${event.id}`}>
                             <button
                               className="w-full text-white px-4 py-2 rounded-md hover:opacity-90 transition-colors font-noto-serif font-medium"
                               style={{ background: 'linear-gradient(135deg, hsl(173, 58%, 39%), hsl(173, 65%, 42%))' }}
                             >
                               チケット発行へ
                             </button>
-                          </a>
+                          </Link>
                         </>
                       )
                     )}

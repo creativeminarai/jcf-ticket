@@ -9,10 +9,16 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import type { Shop, Event } from "@/types/database.types";
+import type { Database } from "@/types/database.types";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import type { ShopAttendance, EventDateWithAttendance } from "@/types/shopAttendance";
 import { useToast } from "../ui/use-toast";
+
+// 型定義
+type Shop = Database['public']['Tables']['Shop']['Row'];
+type Event = Database['public']['Tables']['Event']['Row'] & {
+  EventDate: Database['public']['Tables']['EventDate']['Row'][]
+};
 
 interface ShopFormProps {
   shop?: Shop | null;
@@ -210,17 +216,17 @@ export default function ShopForm({ shop, event: initialEvent, events, onSubmit, 
     if (shop && initialEvent) {
       // 既存の店舗データがある場合は、フォームの値を設定
       // 店舗コードから店舗番号を抽出
-      const { shopNumber } = parseShopCode(shop.shop_code);
+      const { shopNumber } = parseShopCode(shop.shop_code || '');
       // 先頭の0を除去して数値として店舗番号を設定
       const numericShopNumber = shopNumber === '' ? '' : String(parseInt(shopNumber, 10));
       form.setValue("shop_number", numericShopNumber);
-      form.setValue("shop_name", shop.shop_name);
-      form.setValue("coffee_name", shop.coffee_name);
+      form.setValue("shop_name", shop.shop_name || '');
+      form.setValue("coffee_name", shop.coffee_name || '');
       form.setValue("greeting", shop.greeting || "");
-      form.setValue("roast_level", shop.roast_level);
+      form.setValue("roast_level", shop.roast_level || '');
       form.setValue("pr_url", shop.pr_url || "");
-      form.setValue("destiny_ratio", shop.destiny_ratio);
-      form.setValue("ticket_count", shop.ticket_count);
+      form.setValue("destiny_ratio", shop.destiny_ratio || 5);
+      form.setValue("ticket_count", shop.ticket_count || 1);
       form.setValue("image_url", shop.image_url || "");
       form.setValue("notes", shop.notes || "");
       form.setValue("selected_event_id", initialEvent.id);
@@ -241,16 +247,21 @@ export default function ShopForm({ shop, event: initialEvent, events, onSubmit, 
     // 送信データの作成
     const submitData: Shop = {
       id: shop?.id || "",
+      name: shop?.name || "Shop", // 必須フィールド
+      description: shop?.description || null,
+      image_url: shop?.image_url || null,
       shop_code: shopCode,
       shop_name: data.shop_name,
       coffee_name: data.coffee_name,
-      greeting: data.greeting || "",
+      greeting: data.greeting || null,
       roast_level: data.roast_level,
-      pr_url: data.pr_url || "",
+      pr_url: data.pr_url || null,
       destiny_ratio: data.destiny_ratio,
       ticket_count: data.ticket_count,
-      image_url: data.image_url || "",
-      notes: data.notes || ""
+      notes: data.notes || null,
+      deleted_at: shop?.deleted_at || null,
+      created_at: shop?.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
     
     // 出店情報の配列を作成

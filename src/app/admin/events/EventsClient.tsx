@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import type { EventWithDates, EventDate, Database } from "@/types/database.types";
+import type { EventWithDates, Database } from "@/types/database.types";
 
 // データベースのステータスカラムを参照する
 type EventStatus = "draft" | "published" | "closed";
@@ -20,6 +20,31 @@ export function EventsClient({ initialEvents }: { initialEvents: EventWithDates[
   // イベントデータを使用
   const [events, setEvents] = useState<EventWithDates[]>(initialEvents);
   const supabase = createClientComponentClient<Database>();
+
+  // コンポーネントマウント時にデータベース情報を取得
+  useEffect(() => {
+    const checkDatabaseSchema = async () => {
+      try {
+        // Eventテーブルの情報を取得
+        const { data, error } = await supabase
+          .from("Event")
+          .select("*")
+          .limit(1);
+          
+        if (error) {
+          console.error("Error fetching Event table:", error);
+        } else {
+          console.log("Event table sample data:", data);
+          
+          // get_tables RPCの呼び出しを削除
+        }
+      } catch (error) {
+        console.error("Database check error:", error);
+      }
+    };
+    
+    checkDatabaseSchema();
+  }, [supabase]);
 
   // 日付フォーマット用関数
   const formatDate = (dateStr: string) => {
@@ -49,25 +74,115 @@ export function EventsClient({ initialEvents }: { initialEvents: EventWithDates[
     };
   };
 
+  // イベントを開催日初日の昇順でソートする
+  useEffect(() => {
+    const sortEventsByStartDate = () => {
+      const sortedEvents = [...events].sort((a, b) => {
+        const aDates = getEventDates(a);
+        const bDates = getEventDates(b);
+        
+        // 日付不明の場合は最後に表示
+        if (aDates.startDate === "日付不明" && bDates.startDate === "日付不明") return 0;
+        if (aDates.startDate === "日付不明") return 1;
+        if (bDates.startDate === "日付不明") return -1;
+        
+        return new Date(aDates.startDate).getTime() - new Date(bDates.startDate).getTime();
+      });
+      
+      setEvents(sortedEvents);
+    };
+    
+    sortEventsByStartDate();
+  }, [initialEvents]); // initialEventsが変更されたときにのみ実行
+
   // ステータス変更処理
   const handleStatusChange = async (eventId: string, newStatus: EventStatus) => {
     try {
-      // データベースのステータスカラムを更新
-      const { error } = await supabase
-        .from("Event")
-        .update({ status: newStatus })
-        .eq("id", eventId);
+      console.log(`Updating event ${eventId} status to ${newStatus}`);
       
-      if (error) throw error;
+      // まず現在のイベントデータを取得して確認
+      const { data: currentEvent, error: fetchError } = await supabase
+        .from("Event")
+        .select("*")
+        .eq("id", eventId)
+        .single();
+        
+      if (fetchError) {
+        console.error("Error fetching current event:", fetchError);
+        throw new Error(`イベントの取得に失敗しました: ${fetchError.message}`);
+      }
+      
+      console.log("Current event data:", currentEvent);
+      
+      // 更新するデータを準備
+      const updateData = {
+        status: newStatus
+        // updated_atフィールドは削除（テーブルにこのフィールドが存在しないため）
+      };
+      
+      console.log("Updating with data:", updateData);
+      
+      // 別の方法でステータス更新を試みる
+      try {
+        // 方法1: 直接SQLを実行する方法は削除（エラーの原因になる可能性があるため）
+      } catch (rpcAttemptError) {
+        console.log("RPC method not available, trying direct update");
+      }
+      
+      // 方法2: 通常のupdate
+      const { data, error } = await supabase
+        .from("Event")
+        .update(updateData)
+        .eq("id", eventId)
+        .select();
+      
+      if (error) {
+        console.error("Status update error details:", error);
+        
+        // エラーの詳細情報を取得
+        if (error.code) {
+          console.error(`Error code: ${error.code}, Message: ${error.message}, Details: ${error.details}`);
+        }
+        
+        throw new Error(`ステータス更新エラー: ${error.message || JSON.stringify(error)}`);
+      }
 
-      // 更新に成功したら、ローカルの状態も更新
-      setEvents(events.map(event => 
-        event.id === eventId ? { ...event, status: newStatus } : event
-      ));
+      console.log("Update successful:", data);
+
+      // 更新に成功したら、ローカルの状態も更新し、再ソートする
+      if (data) {
+        const updatedEvents = events.map(event => 
+          event.id === eventId ? { ...event, status: newStatus } : event
+        );
+        
+        // 更新後のイベントリストを開催日初日の昇順でソート
+        const sortedEvents = [...updatedEvents].sort((a, b) => {
+          const aDates = getEventDates(a);
+          const bDates = getEventDates(b);
+          
+          // 日付不明の場合は最後に表示
+          if (aDates.startDate === "日付不明" && bDates.startDate === "日付不明") return 0;
+          if (aDates.startDate === "日付不明") return 1;
+          if (bDates.startDate === "日付不明") return -1;
+          
+          return new Date(aDates.startDate).getTime() - new Date(bDates.startDate).getTime();
+        });
+        
+        setEvents(sortedEvents);
+        alert(`ステータスを「${STATUS_MAP[newStatus].label}」に変更しました`);
+      }
 
     } catch (error) {
       console.error("Status update error:", error);
-      alert("ステータスの更新に失敗しました");
+      
+      // エラーの詳細情報を表示
+      if (error instanceof Error) {
+        console.error("Error name:", error.name);
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+      }
+      
+      alert(`ステータスの更新に失敗しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
     }
   };
 

@@ -37,6 +37,28 @@ export default async function EventsPage() {
         data.forEach(event => {
           event.EventDate = eventDates.filter(date => date.event_id === event.id);
         });
+        
+        // イベントを開催日初日の昇順でソート
+        data.sort((a, b) => {
+          // 各イベントの開始日を取得
+          const getStartDate = (event: any) => {
+            if (!event.EventDate || event.EventDate.length === 0) {
+              return new Date(8640000000000000); // 遠い未来の日付（日付不明の場合は最後に表示）
+            }
+            
+            // 日付を日付順にソート
+            const sortedDates = [...event.EventDate].sort((dateA, dateB) => {
+              return new Date(dateA.date).getTime() - new Date(dateB.date).getTime();
+            });
+            
+            return new Date(sortedDates[0].date);
+          };
+          
+          const aStartDate = getStartDate(a);
+          const bStartDate = getStartDate(b);
+          
+          return aStartDate.getTime() - bStartDate.getTime();
+        });
       }
     }
 

@@ -3,15 +3,21 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import ShopForm from "@/components/shops/ShopForm";
-import type { Event as DBEvent, EventDate as DBEventDate, Shop } from "@/types/database.types";
+import type { Database } from "@/types/database.types";
 import type { ShopAttendance } from "@/types/shopAttendance";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+
+// 型定義
+type Shop = Database['public']['Tables']['Shop']['Row'];
+type Event = Database['public']['Tables']['Event']['Row'] & {
+  EventDate: Database['public']['Tables']['EventDate']['Row'][]
+};
 
 // 明示的に型をエクスポート
 export interface ClientWrapperProps {
   shop: Shop | null;
-  event: DBEvent | null;
-  events: DBEvent[];
+  event: Event | null;
+  events: Event[];
 }
 
 // 明示的にReactコンポーネントとして型付け
