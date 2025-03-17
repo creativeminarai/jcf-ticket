@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
+import { v4 as uuidv4 } from 'uuid';
 
 // Next.js 15でcookies()関数が非同期になったため、nodejsランタイムを使用
 export const runtime = 'nodejs';

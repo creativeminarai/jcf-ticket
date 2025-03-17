@@ -10,15 +10,24 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Spinner } from "@/components/ui/spinner";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import type { Database } from "@/types/database.types";
-import { toast } from "@/components/ui/use-toast";
+import { useToast } from "@/components/ui/use-toast";
+import { Label } from "@/components/ui/label";
+import { Sparkles, Trash2, Plus } from "lucide-react";
 
 // データ型定義
 type Event = Database["public"]["Tables"]["Event"]["Row"];
 type EventDate = Database["public"]["Tables"]["EventDate"]["Row"];
 type Shop = Database["public"]["Tables"]["Shop"]["Row"] & {
-  attendance_id?: string;
+  destiny_ratio?: number;
 };
 type ShopAttendance = Database["public"]["Tables"]["ShopAttendance"]["Row"];
+type FateTicket = Database["public"]["Tables"]["FateTicket"]["Row"] & {
+  Shop: {
+    shop_name?: string;
+    shop_code?: string;
+  };
+};
+type FateBatch = Database["public"]["Tables"]["FateBatch"]["Row"];
 
 // 出店者情報の型定義を修正
 type ShopAttendanceWithShop = {
@@ -26,11 +35,10 @@ type ShopAttendanceWithShop = {
   shop_id: string;
   Shop: {
     id: string;
+    name: string;
     shop_code?: string;
     shop_name?: string;
-    description: string | null;
     image_url: string | null;
-    destiny_ratio?: number;
     deleted_at: string | null;
     created_at: string;
     updated_at: string;
@@ -46,14 +54,14 @@ const getJapaneseDayOfWeek = (dateString: string): string => {
 };
 
 export default function FatePreparationPage() {
-  // Supabaseクライアント
   const supabase = createClientComponentClient<Database>();
-
+  const { toast } = useToast();
+  
   // 状態管理
   const [events, setEvents] = useState<Event[]>([]);
   const [eventDates, setEventDates] = useState<EventDate[]>([]);
-  const [selectedEventId, setSelectedEventId] = useState<string>("");
-  const [selectedDateId, setSelectedDateId] = useState<string>("");
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [selectedDateId, setSelectedDateId] = useState<string | null>(null);
   const [selectedDateString, setSelectedDateString] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isLoadingEvents, setIsLoadingEvents] = useState<boolean>(true);
@@ -61,28 +69,33 @@ export default function FatePreparationPage() {
   const [isLoadingShops, setIsLoadingShops] = useState<boolean>(false);
   const [shops, setShops] = useState<Shop[]>([]);
   const [selectedTickets, setSelectedTickets] = useState<string[]>([]);
+  const [isCreatingTickets, setIsCreatingTickets] = useState(false);
+  const [fateTickets, setFateTickets] = useState<FateTicket[]>([]);
+  const [isLoadingTickets, setIsLoadingTickets] = useState(false);
+  const [isDeletingTickets, setIsDeletingTickets] = useState(false);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalTickets, setTotalTickets] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const ITEMS_PER_PAGE = 50;
 
   // イベント一覧を取得
   useEffect(() => {
     const fetchEvents = async () => {
-      setIsLoadingEvents(true);
       try {
+        setIsLoadingEvents(true);
         const { data, error } = await supabase
           .from("Event")
           .select("*")
           .is("deleted_at", null)
           .order("event_number", { ascending: true });
 
-        if (error) {
-          throw error;
-        }
-
+        if (error) throw error;
         setEvents(data || []);
       } catch (error) {
         console.error("イベント取得エラー:", error);
         toast({
           title: "エラー",
-          description: "イベント一覧の取得に失敗しました",
+          description: "イベント情報の取得に失敗しました",
           variant: "destructive",
         });
       } finally {
@@ -91,27 +104,29 @@ export default function FatePreparationPage() {
     };
 
     fetchEvents();
-  }, [supabase]);
+  }, [supabase, toast]);
 
   // イベント選択時の処理
-  const handleEventChange = async (value: string) => {
+  const handleEventChange = (value: string) => {
     setSelectedEventId(value);
-    setSelectedDateId("");
+    setSelectedDateId(null);
     setShops([]);
-    setIsLoadingDates(true);
+    setFateTickets([]);
+    fetchEventDates(value);
+  };
 
+  // イベント日付の取得
+  const fetchEventDates = async (eventId: string) => {
     try {
+      setIsLoadingDates(true);
       const { data, error } = await supabase
         .from("EventDate")
         .select("*")
-        .eq("event_id", value)
+        .eq("event_id", eventId)
         .is("deleted_at", null)
-        .order("date", { ascending: true });
+        .order("date");
 
-      if (error) {
-        throw error;
-      }
-
+      if (error) throw error;
       setEventDates(data || []);
     } catch (error) {
       console.error("イベント日付取得エラー:", error);
@@ -128,77 +143,68 @@ export default function FatePreparationPage() {
   // 日付選択時の処理
   const handleDateChange = async (value: string) => {
     setSelectedDateId(value);
+    setShops([]);
+    setFateTickets([]);
     
-    // 選択された日付の文字列を設定
+    // 選択された日付の文字列を保存
     const selectedDate = eventDates.find(date => date.id === value);
     if (selectedDate) {
       setSelectedDateString(selectedDate.date);
     }
     
-    setIsLoadingShops(true);
-
     try {
-      // 1. まず出店情報を取得
+      setIsLoadingShops(true);
+      
+      // 選択された日付に参加する店舗情報を取得
       const { data: attendanceData, error: attendanceError } = await supabase
         .from("ShopAttendance")
         .select("id, shop_id")
         .eq("event_date_id", value)
         .is("deleted_at", null);
 
-      if (attendanceError) {
-        throw attendanceError;
-      }
-
+      if (attendanceError) throw attendanceError;
+      
       if (!attendanceData || attendanceData.length === 0) {
         setShops([]);
+        setIsLoadingShops(false);
         return;
       }
-
-      // 2. 取得した店舗IDのリストを作成
+      
+      // 取得した店舗IDのリストを作成
       const shopIds = attendanceData.map(attendance => attendance.shop_id);
-
-      // 3. 店舗情報を別クエリで取得
+      
+      // 店舗情報を別クエリで取得
       const { data: shopsData, error: shopsError } = await supabase
         .from("Shop")
         .select("*")
         .in("id", shopIds)
         .is("deleted_at", null);
-
-      if (shopsError) {
-        throw shopsError;
-      }
-
-      // 4. 出店者データと店舗データを結合
-      const formattedShops: Shop[] = shopsData.map(shop => {
-        const attendance = attendanceData.find(a => a.shop_id === shop.id);
-        
-        // 店舗コードから下4桁を抽出し、数値に変換
-        const shopCodeLast4 = shop.shop_code ? 
-          shop.shop_code.slice(-4) : '';
-        const shopNumber = shopCodeLast4 ? parseInt(shopCodeLast4, 10) : 0;
-        
-        return {
-          ...shop,
-          name: shop.shop_name || shop.name || "名称未設定",
-          attendance_id: attendance ? attendance.id : undefined,
-          // 表示用の店舗番号を追加
-          shopNumber: shopNumber
-        };
-      });
-
+      
+      if (shopsError) throw shopsError;
+      
+      // 店舗データを整形
+      const formattedShops: Shop[] = shopsData.map(shop => ({
+        ...shop,
+        destiny_ratio: shop.destiny_ratio || 0
+      }));
+      
       // 店舗番号で昇順ソート
       formattedShops.sort((a, b) => {
-        const numA = a.shopNumber || 0;
-        const numB = b.shopNumber || 0;
+        const numA = a.shop_code ? parseInt(a.shop_code.slice(-4), 10) || 0 : 0;
+        const numB = b.shop_code ? parseInt(b.shop_code.slice(-4), 10) || 0 : 0;
         return numA - numB;
       });
-
+      
       setShops(formattedShops);
+      
+      // 運命チケットを取得（ページを1に戻す）
+      await fetchFateTickets(selectedEventId as string, value, 1);
+      
     } catch (error) {
-      console.error("出店者情報取得エラー:", error);
+      console.error("店舗取得エラー:", error);
       toast({
         title: "エラー",
-        description: "出店者情報の取得に失敗しました",
+        description: "店舗情報の取得に失敗しました",
         variant: "destructive",
       });
     } finally {
@@ -206,58 +212,213 @@ export default function FatePreparationPage() {
     }
   };
 
-  // 運命の比重変更時の処理
-  const handleDestinyRatioChange = async (shopId: string, value: string) => {
-    const numValue = parseInt(value, 10) || 0;
-    // 0〜10の範囲に制限
-    const limitedValue = Math.min(Math.max(numValue, 0), 10);
-    
-    // UIを先に更新
-    setShops(shops.map(shop => 
-      shop.id === shopId ? { ...shop, destiny_ratio: limitedValue } : shop
-    ));
-
-    // Supabaseに更新
+  // 運命チケットを取得する関数
+  const fetchFateTickets = async (eventId: string, dateId: string, page: number = 1) => {
     try {
-      console.log(`Shop ID: ${shopId} の destiny_ratio を ${limitedValue} に更新します`);
+      setIsLoadingTickets(true);
       
-      const { error } = await supabase
-        .from("Shop")
-        .update({ destiny_ratio: limitedValue })
-        .eq("id", shopId);
-
-      if (error) {
-        console.error("Supabase更新エラー:", error);
-        throw error;
-      }
+      // ページネーションの設定
+      const pageSize = 10;
       
-      console.log(`Shop ID: ${shopId} の destiny_ratio を正常に更新しました`);
-    } catch (error) {
-      console.error("運命の比重更新エラー:", error);
-      
-      // エラーの詳細情報を出力
-      if (error instanceof Error) {
-        console.error("エラーメッセージ:", error.message);
-        console.error("スタックトレース:", error.stack);
-      } else {
-        console.error("不明なエラー:", JSON.stringify(error));
-      }
-      
-      toast({
-        title: "エラー",
-        description: "運命の比重の更新に失敗しました",
-        variant: "destructive",
+      // APIエンドポイントを使用してチケットを取得
+      const response = await fetch("/api/admin/fate-tickets", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          event_id: eventId,
+          event_date_id: dateId,
+          page,
+          pageSize: ITEMS_PER_PAGE
+        }),
       });
       
-      // エラーの場合は元の値に戻す
-      const originalShop = shops.find(shop => shop.id === shopId);
-      if (originalShop) {
-        setShops(shops.map(shop => 
-          shop.id === shopId ? { ...shop, destiny_ratio: originalShop.destiny_ratio } : shop
-        ));
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "チケットの取得に失敗しました");
       }
+      
+      const result = await response.json();
+      
+      // 取得したデータを状態に設定
+      setFateTickets(result.data.tickets || []);
+      setTotalTickets(result.data.totalCount || 0);
+      setTotalPages(result.data.totalPages || 1);
+      setCurrentPage(page);
+      
+      console.log("チケット取得成功:", {
+        件数: result.data.tickets?.length || 0,
+        総数: result.data.totalCount || 0,
+        ページ: page,
+        総ページ数: result.data.totalPages || 1
+      });
+      
+    } catch (error) {
+      console.error("チケット取得エラー:", error);
+      toast({
+        title: "エラー",
+        description: "運命チケットの取得に失敗しました",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingTickets(false);
     }
   };
+
+  // チケットの選択状態を切り替える関数
+  const toggleTicketSelection = (ticketId: string) => {
+    setSelectedTickets(prev => 
+      prev.includes(ticketId)
+        ? prev.filter(id => id !== ticketId)
+        : [...prev, ticketId]
+    );
+  };
+
+  // 選択したチケットを削除する関数
+  const handleDeleteSelectedTickets = async () => {
+    if (selectedTickets.length === 0) return;
+    
+    try {
+      setIsDeletingTickets(true);
+      
+      // APIエンドポイントを使用してチケットを削除
+      const response = await fetch("/api/admin/fate-tickets/delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ticket_ids: selectedTickets
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "チケットの削除に失敗しました");
+      }
+      
+      const result = await response.json();
+      
+      // 成功メッセージ
+      toast({
+        title: "成功",
+        description: `${selectedTickets.length}件のチケットを削除しました`,
+      });
+      
+      // チケット一覧を再取得（現在のページを維持）
+      if (selectedEventId && selectedDateId) {
+        await fetchFateTickets(selectedEventId, selectedDateId, currentPage);
+      }
+      
+      // 選択をクリア
+      setSelectedTickets([]);
+    } catch (error) {
+      console.error("チケット削除エラー:", error);
+      toast({
+        title: "エラー",
+        description: error instanceof Error ? error.message : "チケットの削除に失敗しました",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeletingTickets(false);
+    }
+  };
+
+  // 運命チケット作成処理
+  const handleCreateFateTickets = async () => {
+    if (!selectedEventId || !selectedDateId || shops.length === 0) {
+      toast({
+        title: "エラー",
+        description: "イベント、開催日、出店者情報が必要です",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // ローディング状態を設定
+      setIsCreatingTickets(true);
+      console.log("運命チケット作成開始");
+
+      // APIリクエストデータの準備
+      const requestData = {
+        event_id: selectedEventId,
+        event_date_id: selectedDateId,
+        shops: shops.map(shop => ({
+          id: shop.id,
+          destiny_ratio: shop.destiny_ratio || 0
+        }))
+      };
+      console.log("APIリクエストデータ:", JSON.stringify(requestData, null, 2));
+
+      // APIリクエスト
+      console.log("APIリクエスト送信中...");
+      const response = await fetch("/api/admin/fate-batch/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestData),
+      });
+      console.log("APIレスポンスステータス:", response.status, response.statusText);
+
+      const result = await response.json();
+      console.log("APIレスポンス内容:", JSON.stringify(result, null, 2));
+
+      if (!response.ok) {
+        throw new Error(result.error || "運命チケットの作成に失敗しました");
+      }
+
+      // 成功メッセージ
+      toast({
+        title: "成功",
+        description: result.message || "運命チケットの作成が完了しました",
+      });
+      console.log("運命チケット作成結果:", result);
+      
+      // チケット一覧を再取得（ページを1に戻す）
+      if (selectedEventId && selectedDateId) {
+        await fetchFateTickets(selectedEventId, selectedDateId, 1);
+      }
+    } catch (error) {
+      console.error("運命チケット作成エラー:", error);
+      toast({
+        title: "エラー",
+        description: error instanceof Error ? error.message : "運命チケットの作成中にエラーが発生しました",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingTickets(false);
+      console.log("運命チケット作成処理完了");
+    }
+  };
+
+  // 店舗の比重を更新する関数
+  const updateShopRatio = (shopId: string, ratio: number) => {
+    setShops(prevShops => 
+      prevShops.map(shop => 
+        shop.id === shopId 
+          ? { ...shop, destiny_ratio: ratio } 
+          : shop
+      )
+    );
+  };
+
+  // ページ変更ハンドラー
+  const handlePageChange = (newPage: number) => {
+    if (selectedEventId && selectedDateId) {
+      fetchFateTickets(selectedEventId, selectedDateId, newPage);
+    }
+  };
+
+  // 状態更新後にも確認ログを追加
+  useEffect(() => {
+    console.log("fateTickets状態更新:", {
+      件数: fateTickets.length,
+      データ例: fateTickets.length > 0 ? fateTickets[0] : "なし"
+    });
+  }, [fateTickets]);
 
   return (
     <div className="space-y-6">
@@ -282,16 +443,21 @@ export default function FatePreparationPage() {
                   <Spinner size="sm" />
                 </div>
               ) : (
-                <Select value={selectedEventId} onValueChange={handleEventChange}>
+                <Select value={selectedEventId || ""} onValueChange={handleEventChange}>
                   <SelectTrigger>
                     <SelectValue placeholder="イベントを選択" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {events.map((event) => (
-                      <SelectItem key={event.id} value={event.id}>
-                        {event.name}
-                      </SelectItem>
-                    ))}
+                  <SelectContent className="bg-white">
+                    {events.map((event) => {
+                      console.log("イベント情報:", event.id, event.name, event.event_number); // デバッグ用ログ
+                      return (
+                        <SelectItem key={event.id} value={event.id} className="hover:bg-gray-100">
+                          {event.event_number !== null && event.event_number !== undefined 
+                            ? `第${event.event_number}回 ` 
+                            : ''}{event.name}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               )}
@@ -305,16 +471,22 @@ export default function FatePreparationPage() {
                 </div>
               ) : (
                 <Select 
-                  value={selectedDateId} 
+                  value={selectedDateId || ""} 
                   onValueChange={handleDateChange}
                   disabled={!selectedEventId || eventDates.length === 0}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="開催日を選択" />
+                    <SelectValue placeholder={
+                      !selectedEventId 
+                        ? "先にイベントを選択してください" 
+                        : eventDates.length === 0 
+                          ? "開催日が登録されていません" 
+                          : "開催日を選択"
+                    } />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-white">
                     {eventDates.map((date) => (
-                      <SelectItem key={date.id} value={date.id}>
+                      <SelectItem key={date.id} value={date.id} className="hover:bg-gray-100">
                         {date.date}{getJapaneseDayOfWeek(date.date)}
                       </SelectItem>
                     ))}
@@ -359,7 +531,7 @@ export default function FatePreparationPage() {
                           min="0"
                           max="10"
                           value={shop.destiny_ratio || 0}
-                          onChange={(e) => handleDestinyRatioChange(shop.id, e.target.value)}
+                          onChange={(e) => updateShopRatio(shop.id, parseInt(e.target.value) || 0)}
                           className="h-7 px-2"
                         />
                       </TableCell>
@@ -376,7 +548,7 @@ export default function FatePreparationPage() {
         </Card>
       )}
 
-      {/* 運命チケット管理 - 実装しない */}
+      {/* 運命チケット管理 */}
       {selectedDateId && shops.length > 0 && (
         <Card>
           <CardHeader>
@@ -387,14 +559,171 @@ export default function FatePreparationPage() {
               <div className="flex flex-col sm:flex-row gap-2">
                 <Button 
                   variant="default" 
-                  disabled={isLoading}
+                  disabled={isCreatingTickets || !selectedEventId || !selectedDateId || shops.length === 0}
+                  onClick={() => {
+                    console.log("運命チケット作成ボタンがクリックされました");
+                    handleCreateFateTickets();
+                  }}
+                  className="relative bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-medium py-2 px-4 rounded-md shadow-md hover:shadow-lg transition-all duration-200"
+                  size="lg"
                 >
-                  {isLoading ? <><Spinner size="sm" className="mr-2" /> 処理中...</> : "運命チケット作成"}
+                  {isCreatingTickets ? (
+                    <>
+                      <span className="opacity-0">運命チケット作成</span>
+                      <span className="absolute inset-0 flex items-center justify-center">
+                        <Spinner size="sm" className="mr-2" />
+                        処理中...
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-5 w-5" />
+                      運命チケット作成
+                    </>
+                  )}
                 </Button>
-                <p className="text-sm text-gray-500 mt-2 sm:mt-0 sm:ml-2">
-                  ※ この機能は現在実装中です
+                <p className="text-sm text-gray-500 mt-2 sm:mt-0 sm:ml-2 flex items-center">
+                  ※ 運命の比重に応じてチケットが生成されます
                 </p>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 運命チケット一覧 */}
+      {selectedDateId && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>運命チケット一覧（全{totalTickets}件）</CardTitle>
+            <div className="flex space-x-2">
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleDeleteSelectedTickets}
+                disabled={selectedTickets.length === 0 || isDeletingTickets}
+                className="flex items-center"
+              >
+                {isDeletingTickets ? <Spinner size="sm" className="mr-2" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                選択したチケットを削除 ({selectedTickets.length})
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoadingTickets ? (
+              <div className="flex items-center justify-center p-4">
+                <Spinner />
+              </div>
+            ) : fateTickets.length > 0 ? (
+              <>
+                <Table className="border-collapse">
+                  <TableHeader>
+                    <TableRow className="h-8">
+                      <TableHead className="py-1 w-10">
+                        <Checkbox
+                          checked={selectedTickets.length > 0 && selectedTickets.length === fateTickets.length}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedTickets(fateTickets.map(ticket => ticket.id));
+                            } else {
+                              setSelectedTickets([]);
+                            }
+                          }}
+                        />
+                      </TableHead>
+                      <TableHead className="py-1">バッチID</TableHead>
+                      <TableHead className="py-1">ポジション</TableHead>
+                      <TableHead className="py-1">店名</TableHead>
+                      <TableHead className="py-1">抽選者ID</TableHead>
+                      <TableHead className="py-1">抽選日</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {fateTickets.map((ticket) => (
+                      <TableRow key={ticket.id} className="h-8 hover:bg-gray-50">
+                        <TableCell className="py-1">
+                          <Checkbox
+                            checked={selectedTickets.includes(ticket.id)}
+                            onCheckedChange={() => toggleTicketSelection(ticket.id)}
+                          />
+                        </TableCell>
+                        <TableCell className="py-1">{ticket.batch_id}</TableCell>
+                        <TableCell className="py-1">{ticket.fate_position}</TableCell>
+                        <TableCell className="py-1">
+                          {ticket.Shop?.shop_code && (
+                            <span className="font-medium text-gray-500 mr-2">
+                              {parseInt(ticket.Shop.shop_code.slice(-4), 10)}
+                            </span>
+                          )}
+                          {ticket.Shop?.shop_name || '不明'}
+                        </TableCell>
+                        <TableCell className="py-1">{ticket.drawn_by_id || '-'}</TableCell>
+                        <TableCell className="py-1">{ticket.drawn_at ? new Date(ticket.drawn_at).toLocaleDateString('ja-JP') : '-'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                
+                {/* ページネーション */}
+                <div className="flex items-center justify-between mt-4">
+                  <div className="text-sm text-gray-500">
+                    {totalTickets}件中 {(currentPage - 1) * ITEMS_PER_PAGE + 1}～{Math.min(currentPage * ITEMS_PER_PAGE, totalTickets)}件を表示
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(1)}
+                      disabled={currentPage === 1 || isLoadingTickets}
+                    >
+                      最初
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1 || isLoadingTickets}
+                    >
+                      前へ
+                    </Button>
+                    <span className="px-2 py-1">
+                      {currentPage} / {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages || isLoadingTickets}
+                    >
+                      次へ
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(totalPages)}
+                      disabled={currentPage === totalPages || isLoadingTickets}
+                    >
+                      最後
+                    </Button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-4 text-gray-500">
+                運命チケットがありません。「運命チケット作成」ボタンからチケットを生成してください。
+              </div>
+            )}
+            
+            <div className="mt-4 flex justify-center">
+              <Button
+                variant="outline"
+                onClick={handleCreateFateTickets}
+                disabled={isCreatingTickets || !selectedEventId || !selectedDateId || shops.length === 0}
+                className="flex items-center"
+              >
+                {isCreatingTickets ? <Spinner size="sm" className="mr-2" /> : <Plus className="mr-2 h-4 w-4" />}
+                追加作成
+              </Button>
             </div>
           </CardContent>
         </Card>

@@ -158,7 +158,7 @@ erDiagram
     }
     
     FateBatch {
-        uuid id PK "バッチID"
+        integer id PK "バッチID"
         integer batch_size "バッチサイズ"
         enum status "ステータス"
         timestamp created_at "作成日時"

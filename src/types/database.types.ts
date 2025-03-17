@@ -48,11 +48,12 @@ export interface Database {
           priority: string
           status: string
           processed_at: string | null
-          batch_id: string | null
+          batch_id: number | null
           error_message: string | null
           deleted_at: string | null
           created_at: string
           updated_at: string
+          completed_at: string | null
         }
         Insert: {
           id?: string
@@ -60,11 +61,12 @@ export interface Database {
           priority: string
           status: string
           processed_at?: string | null
-          batch_id?: string | null
+          batch_id?: number | null
           error_message?: string | null
           deleted_at?: string | null
           created_at?: string
           updated_at?: string
+          completed_at?: string | null
         }
         Update: {
           id?: string
@@ -72,11 +74,12 @@ export interface Database {
           priority?: string
           status?: string
           processed_at?: string | null
-          batch_id?: string | null
+          batch_id?: number | null
           error_message?: string | null
           deleted_at?: string | null
           created_at?: string
           updated_at?: string
+          completed_at?: string | null
         }
       }
       Event: {
@@ -148,7 +151,7 @@ export interface Database {
       }
       FateBatch: {
         Row: {
-          id: string
+          id: number
           batch_size: number
           status: string
           created_at: string
@@ -156,9 +159,11 @@ export interface Database {
           completed_at: string | null
           deleted_at: string | null
           updated_at: string
+          event_id: string
+          event_date_id: string
         }
         Insert: {
-          id?: string
+          id?: number
           batch_size: number
           status: string
           created_at: string
@@ -166,9 +171,11 @@ export interface Database {
           completed_at?: string | null
           deleted_at?: string | null
           updated_at?: string
+          event_id: string
+          event_date_id: string
         }
         Update: {
-          id?: string
+          id?: number
           batch_size?: number
           status?: string
           created_at?: string
@@ -176,12 +183,14 @@ export interface Database {
           completed_at?: string | null
           deleted_at?: string | null
           updated_at?: string
+          event_id?: string
+          event_date_id?: string
         }
       }
       FateTicket: {
         Row: {
           id: string
-          batch_id: string
+          batch_id: number
           shop_id: string
           event_id: string
           event_date_id: string | null
@@ -196,7 +205,7 @@ export interface Database {
         }
         Insert: {
           id?: string
-          batch_id: string
+          batch_id: number
           shop_id: string
           event_id: string
           event_date_id?: string | null
@@ -211,7 +220,7 @@ export interface Database {
         }
         Update: {
           id?: string
-          batch_id?: string
+          batch_id?: number
           shop_id?: string
           event_id?: string
           event_date_id?: string | null
