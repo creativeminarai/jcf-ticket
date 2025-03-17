@@ -21,6 +21,15 @@ const createServiceRoleClient = () => {
   return createClient<Database>(supabaseUrl, supabaseServiceRoleKey);
 };
 
+// UUIDの形式を検証する関数
+const isValidUUID = (uuid: string): boolean => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
+};
+
+// 開発環境かどうかを判定
+const isDevelopment = process.env.NODE_ENV === 'development';
+
 export async function POST(req: NextRequest) {
   console.log("Webhook received");
   const body = await req.text();
@@ -72,8 +81,8 @@ export async function POST(req: NextRequest) {
   // セッションイベントの場合、メタデータを取得
   if (event.type && event.type.startsWith('checkout.session.')) {
     const session = event.data.object as Stripe.Checkout.Session;
-    const userId = session.metadata?.userId;
-    const eventId = session.metadata?.eventId;
+    let userId = session.metadata?.userId;
+    let eventId = session.metadata?.eventId;
     let ticketTypeId = session.metadata?.ticketTypeId;
     
     console.log("Session metadata:", { userId, eventId, ticketTypeId });
@@ -82,6 +91,27 @@ export async function POST(req: NextRequest) {
     if (!userId || !eventId) {
       console.error("Missing metadata in checkout session");
       return new NextResponse("Missing metadata", { status: 400 });
+    }
+    
+    // 開発環境ではUUID検証をスキップ可能に
+    if (!isDevelopment) {
+      // UUIDの形式を検証
+      if (!isValidUUID(userId)) {
+        console.error("Invalid userId format:", userId);
+        return new NextResponse("Invalid userId format", { status: 400 });
+      }
+      
+      if (!isValidUUID(eventId)) {
+        console.error("Invalid eventId format:", eventId);
+        return new NextResponse("Invalid eventId format", { status: 400 });
+      }
+      
+      if (ticketTypeId && !isValidUUID(ticketTypeId)) {
+        console.error("Invalid ticketTypeId format:", ticketTypeId);
+        return new NextResponse("Invalid ticketTypeId format", { status: 400 });
+      }
+    } else {
+      console.log("UUID validation skipped in development mode");
     }
     
     // テスト用：ticketTypeIdがない場合はモックデータを使用
@@ -98,18 +128,94 @@ export async function POST(req: NextRequest) {
           
         if (error) {
           console.error("Error fetching ticket type:", error);
-          ticketTypeId = MOCK_TICKET_TYPE_ID;
+          // 有効なUUIDのモックデータを使用
+          const { data: anyTicketType } = await supabase
+            .from("TicketType")
+            .select("id")
+            .limit(1)
+            .single();
+            
+          if (anyTicketType) {
+            ticketTypeId = anyTicketType.id;
+          } else {
+            if (isDevelopment) {
+              // 開発環境ではダミーUUIDを使用
+              ticketTypeId = "00000000-0000-0000-0000-000000000000";
+              console.log("Using dummy ticket type ID for development:", ticketTypeId);
+            } else {
+              return new NextResponse("No valid ticket type found", { status: 400 });
+            }
+          }
         } else if (data) {
           ticketTypeId = data.id;
         } else {
-          ticketTypeId = MOCK_TICKET_TYPE_ID;
+          if (isDevelopment) {
+            // 開発環境ではダミーUUIDを使用
+            ticketTypeId = "00000000-0000-0000-0000-000000000000";
+            console.log("Using dummy ticket type ID for development:", ticketTypeId);
+          } else {
+            return new NextResponse("No ticket type found", { status: 400 });
+          }
         }
       } catch (error) {
         console.error("Error in ticket type lookup:", error);
-        ticketTypeId = MOCK_TICKET_TYPE_ID;
+        if (isDevelopment) {
+          // 開発環境ではダミーUUIDを使用
+          ticketTypeId = "00000000-0000-0000-0000-000000000000";
+          console.log("Using dummy ticket type ID for development:", ticketTypeId);
+        } else {
+          return new NextResponse("Error fetching ticket type", { status: 500 });
+        }
       }
       
       console.log("Using ticket type ID:", ticketTypeId);
+    }
+    
+    // 開発環境では参照整合性チェックをスキップ可能に
+    if (!isDevelopment) {
+      // 参照整合性チェック
+      try {
+        // イベントが存在するか確認
+        const { data: eventData, error: eventError } = await supabase
+          .from("Event")
+          .select("id")
+          .eq("id", eventId)
+          .single();
+          
+        if (eventError || !eventData) {
+          console.error("Event not found:", eventId, eventError);
+          return new NextResponse("Event not found", { status: 400 });
+        }
+        
+        // チケットタイプが存在するか確認
+        const { data: ticketTypeData, error: ticketTypeError } = await supabase
+          .from("TicketType")
+          .select("id")
+          .eq("id", ticketTypeId)
+          .single();
+          
+        if (ticketTypeError || !ticketTypeData) {
+          console.error("Ticket type not found:", ticketTypeId, ticketTypeError);
+          return new NextResponse("Ticket type not found", { status: 400 });
+        }
+        
+        // ユーザーが存在するか確認
+        const { data: userData, error: userError } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("id", userId)
+          .single();
+          
+        if (userError) {
+          console.error("Error checking user:", userError);
+          // ユーザーチェックはスキップ可能（auth.usersテーブルへの直接アクセスは制限されている場合がある）
+        }
+      } catch (error) {
+        console.error("Error in reference integrity check:", error);
+        return new NextResponse("Error in reference integrity check", { status: 500 });
+      }
+    } else {
+      console.log("Reference integrity check skipped in development mode");
     }
     
     console.log(`Webhook: ${event.type}`, {
@@ -125,11 +231,21 @@ export async function POST(req: NextRequest) {
       try {
         console.log("Processing completed checkout session");
         
+        // 支払いIDを取得（payment_intentまたはsession.id）
+        const paymentId = typeof session.payment_intent === 'string' 
+          ? session.payment_intent 
+          : session.id;
+          
+        if (!paymentId) {
+          console.error("Missing payment ID");
+          return new NextResponse("Missing payment ID", { status: 400 });
+        }
+        
         // 既存の購入レコードを確認（重複防止）
         const { data: existingPurchase, error: queryError } = await supabase
           .from("PurchaseHistory")
           .select("id")
-          .eq("payment_id", session.payment_intent as string || session.id)
+          .eq("payment_id", paymentId)
           .maybeSingle();
           
         if (queryError) {
@@ -144,7 +260,6 @@ export async function POST(req: NextRequest) {
         }
         
         // 新しい購入レコードを作成
-        const paymentId = session.payment_intent as string || session.id;
         console.log("Creating purchase record with data:", {
           user_id: userId,
           event_id: eventId,
@@ -152,89 +267,97 @@ export async function POST(req: NextRequest) {
           payment_id: paymentId
         });
         
-        const { data: newPurchase, error: insertError } = await supabase
-          .from("PurchaseHistory")
-          .insert([
-            {
-              user_id: userId,
-              event_id: eventId,
-              ticket_type_id: ticketTypeId,
-              purchase_date: new Date().toISOString(),
-              quantity: 1,
-              payment_id: paymentId,
+        try {
+          const { data: newPurchase, error: insertError } = await supabase
+            .from("PurchaseHistory")
+            .insert([
+              {
+                user_id: userId,
+                event_id: eventId,
+                ticket_type_id: ticketTypeId,
+                purchase_date: new Date().toISOString(),
+                quantity: 1,
+                payment_id: paymentId,
+              }
+            ])
+            .select();
+            
+          if (insertError) {
+            console.error("Error creating purchase record:", insertError);
+            
+            // テーブル構造やRLSポリシーの詳細なエラー情報を表示
+            if (insertError.details) {
+              console.error("Error details:", insertError.details);
             }
-          ])
-          .select();
-          
-        if (insertError) {
-          console.error("Error creating purchase record:", insertError);
-          
-          // テーブル構造やRLSポリシーの詳細なエラー情報を表示
-          if (insertError.details) {
-            console.error("Error details:", insertError.details);
-          }
-          if (insertError.hint) {
-            console.error("Error hint:", insertError.hint);
+            if (insertError.hint) {
+              console.error("Error hint:", insertError.hint);
+            }
+            
+            return new NextResponse(JSON.stringify({
+              error: "Error creating purchase record",
+              details: insertError
+            }), { status: 500 });
           }
           
-          return new NextResponse(JSON.stringify({
-            error: "Error creating purchase record",
-            details: insertError
-          }), { status: 500 });
-        }
-        
-        console.log("Purchase record created:", newPurchase);
-        
-        // AllStoreTicketに2レコードを追加（全店舗チケット）
-        const allStoreTickets = [
-          {
-            event_id: eventId,
-            user_id: userId,
-            shop_id: null,
-            used_at: null
-          },
-          {
-            event_id: eventId,
-            user_id: userId,
-            shop_id: null,
-            used_at: null
-          }
-        ];
-        
-        console.log("Creating all store tickets:", allStoreTickets);
-        
-        const { data: ticketData, error: allStoreTicketError } = await supabase
-          .from("AllStoreTicket")
-          .insert(allStoreTickets)
-          .select();
+          console.log("Purchase record created:", newPurchase);
           
-        if (allStoreTicketError) {
-          console.error("Error creating all store tickets:", allStoreTicketError);
+          // AllStoreTicketに2レコードを追加（全店舗チケット）
+          const allStoreTickets = [
+            {
+              event_id: eventId,
+              user_id: userId,
+              shop_id: null,
+              used_at: null
+            },
+            {
+              event_id: eventId,
+              user_id: userId,
+              shop_id: null,
+              used_at: null
+            }
+          ];
           
-          // テーブル構造やRLSポリシーの詳細なエラー情報を表示
-          if (allStoreTicketError.details) {
-            console.error("Error details:", allStoreTicketError.details);
-          }
-          if (allStoreTicketError.hint) {
-            console.error("Error hint:", allStoreTicketError.hint);
+          console.log("Creating all store tickets:", allStoreTickets);
+          
+          const { data: ticketData, error: allStoreTicketError } = await supabase
+            .from("AllStoreTicket")
+            .insert(allStoreTickets)
+            .select();
+            
+          if (allStoreTicketError) {
+            console.error("Error creating all store tickets:", allStoreTicketError);
+            
+            // テーブル構造やRLSポリシーの詳細なエラー情報を表示
+            if (allStoreTicketError.details) {
+              console.error("Error details:", allStoreTicketError.details);
+            }
+            if (allStoreTicketError.hint) {
+              console.error("Error hint:", allStoreTicketError.hint);
+            }
+            
+            // 購入レコードは作成済みなので処理は続行
+            return new NextResponse(JSON.stringify({
+              success: true,
+              warning: "Purchase record created but failed to create tickets",
+              details: allStoreTicketError
+            }), { status: 200 });
+          } else {
+            console.log("All store tickets created:", ticketData);
           }
           
-          // 購入レコードは作成済みなので処理は続行
+          console.log("Purchase completed successfully");
           return new NextResponse(JSON.stringify({
             success: true,
-            warning: "Purchase record created but failed to create tickets",
-            details: allStoreTicketError
+            purchase: newPurchase,
+            tickets: ticketData
           }), { status: 200 });
-        } else {
-          console.log("All store tickets created:", ticketData);
+        } catch (dbError) {
+          console.error("Database error:", dbError);
+          return new NextResponse(JSON.stringify({
+            error: "Database error",
+            details: dbError instanceof Error ? dbError.message : String(dbError)
+          }), { status: 500 });
         }
-        
-        console.log("Purchase completed successfully");
-        return new NextResponse(JSON.stringify({
-          success: true,
-          purchase: newPurchase,
-          tickets: ticketData
-        }), { status: 200 });
       } catch (error) {
         console.error("Error processing checkout session:", error);
         return new NextResponse(JSON.stringify({
