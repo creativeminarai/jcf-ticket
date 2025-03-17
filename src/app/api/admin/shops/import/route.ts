@@ -37,7 +37,17 @@ export async function POST(request: NextRequest) {
     });
 
     // バリデーションと型変換
-    const shops: ShopRow[] = records.map((record: any) => {
+    const shops: ShopRow[] = records.map((record: {
+      shop_code: string;
+      shop_name: string;
+      coffee_name: string;
+      greeting: string;
+      roast_level: string;
+      pr_url: string;
+      destiny_ratio: string;
+      ticket_count: string;
+      notes?: string;
+    }) => {
       if (!record.shop_code || !record.shop_name) {
         throw new Error("店舗番号と店舗名は必須です");
       }

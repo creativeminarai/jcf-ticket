@@ -262,9 +262,8 @@ function TicketContent() {
         issuedShop={issuedShop}
         isLoading={isLoading}
         onIssueTicket={handleIssueTicket}
-        coffeeShops={coffeeShops}
       />
-      <TicketCount count={ticketCount} eventId={event.id} onPurchase={handlePurchaseTicket} />
+      <TicketCount count={ticketCount} onPurchase={handlePurchaseTicket} />
       <CoffeeHistory histories={dummyHistories} />
     </div>
   );

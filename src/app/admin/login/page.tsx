@@ -27,6 +27,7 @@ export default function AdminLogin() {
         setError("パスワードが正しくありません");
       }
     } catch (error) {
+      console.error("ログインエラー:", error);
       setError("ログイン処理中にエラーが発生しました");
     }
   };

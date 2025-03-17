@@ -1,6 +1,4 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { createClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 // Supabase サービスロールクライアントの設定
@@ -51,7 +49,7 @@ export async function POST(req: Request) {
     });
     
     // ストレージにアップロード (サービスロールを使用)
-    const { data, error } = await supabaseAdmin.storage
+    const { error } = await supabaseAdmin.storage
       .from('EventImage')
       .upload(fileName, buffer, {
         cacheControl: '3600',

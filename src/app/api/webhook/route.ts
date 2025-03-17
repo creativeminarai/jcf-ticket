@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
       console.log("Webhook signature verification skipped (development mode)");
       try {
         event = JSON.parse(body);
-      } catch (error) {
+      } catch {
         console.error("Invalid JSON in webhook body");
         return new NextResponse("Invalid JSON", { status: 400 });
       }

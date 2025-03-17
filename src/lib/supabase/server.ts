@@ -61,10 +61,10 @@ export const updateSession = async (request: Request) => {
         get(name: string) {
           return request.headers.get(`cookie-${name}`) ?? ''
         },
-        set(name: string, value: string, options: CookieOptions) {
+        set(name: string, value: string) {
           response.headers.append('Set-Cookie', `${name}=${value}`)
         },
-        remove(name: string, options: CookieOptions) {
+        remove(name: string) {
           response.headers.append('Set-Cookie', `${name}=; Max-Age=0`)
         }
       }

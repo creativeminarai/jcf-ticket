@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     const supabase = await createClient();
     
     // ShopImageバケット（public）にアップロード
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from('ShopImage')
       .upload(fileName, buffer, {
         cacheControl: '3600',

@@ -3,7 +3,6 @@ import type { Database } from "@/types/database.types";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import React from "react";
-import type { ShopAttendance } from "@/types/shopAttendance";
 
 // クライアントコンポーネントをインポートするための境界コンポーネントをインポート
 import ClientBoundary from "./ClientBoundary";

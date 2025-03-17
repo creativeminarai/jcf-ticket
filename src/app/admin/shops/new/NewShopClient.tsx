@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { generateShopCode, getDefaultAttendancePattern } from "@/lib/utils/shop-code";
+import { generateShopCode } from "@/lib/utils/shop-code";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import type { EventWithDates } from "@/types/database.types";
@@ -52,15 +52,19 @@ export default function NewShopClient({ events }: NewShopClientProps) {
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // TODO: 実際のアップロード処理を実装
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    const selectedFile = files[0];
+    const url = URL.createObjectURL(selectedFile);
+    setPreviewUrl(url);
+    setImageUrl(url);
+    
+    // FormDataオブジェクトを作成して、ファイルをアップロード準備
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    
+    // 状態を更新（実際のアップロードはフォーム送信時に行う）
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -93,19 +97,22 @@ export default function NewShopClient({ events }: NewShopClientProps) {
             greeting: formData.greeting,
             roast_level: formData.roastLevel,
             pr_url: formData.prUrl,
-            destiny_ratio: formData.destinyRatio, // 0〜10の整数値で保存
+            destiny_ratio: formData.destinyRatio,
             ticket_count: formData.ticketCount,
-            image_url: imageUrl, // 実際の実装ではアップロードしたURLを使用
             notes: formData.notes,
-            event_id: selectedEvent.id // イベントIDを関連付け
+            image_url: imageUrl // 画像のURLがある場合はセット
           }
         ])
-        .select();
-
+        .select()
+        .single();
+      
       if (error) {
-        throw new Error(`店舗情報の登録に失敗しました: ${error.message}`);
+        console.error("店舗登録エラー:", error);
+        throw error;
       }
-
+      
+      console.log("登録成功:", data);
+      
       alert('新規店舗を登録しました');
       router.push('/admin/shops');
     } catch (error) {

@@ -421,7 +421,14 @@ async function updateQueueStatus(
     );
     
     const now = new Date().toISOString();
-    const updateData: any = {
+    const updateData: {
+      status: string;
+      updated_at: string;
+      error_message?: string;
+      batch_id?: number;
+      processed_at?: string | null;
+      completed_at?: string | null;
+    } = {
       status,
       updated_at: now
     };
@@ -466,7 +473,7 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 // 同じ店舗が隣り合わないようにポジションを決定する関数
-function arrangeTicketsWithoutAdjacentShops(tickets: any[]): number[] {
+function arrangeTicketsWithoutAdjacentShops(tickets: { shop_id: string }[]): number[] {
   // 店舗IDごとにチケットのインデックスをグループ化
   const shopGroups: { [shopId: string]: number[] } = {};
   

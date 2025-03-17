@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/components/ui/use-toast";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 type Shop = {
   id: string;
@@ -124,14 +126,13 @@ export function ShopsClient({ initialShops, events }: { initialShops: Shop[], ev
   
   // 出店日の切り替え処理（API呼び出しは行わず、選択状態のみを管理）
   const toggleAttendance = (shopId: string, eventDateId: string, isCurrentlyAttending: boolean) => {
-    // 選択状態を反転させる
-    const newAttendingValue = !isCurrentlyAttending;
-    
     setSelectedAttendances(prev => {
       // 現在の選択状態を取得
       const existingItem = prev.find(item => 
         item.shopId === shopId && item.eventDateId === eventDateId
       );
+      
+      console.log('Toggle attendance:', { shopId, eventDateId, existingItem, isCurrentlyAttending });
 
       // 既存の選択項目を全てフィルタリングで除去
       const filteredItems = prev.filter(item => 
@@ -139,7 +140,7 @@ export function ShopsClient({ initialShops, events }: { initialShops: Shop[], ev
       );
       
       // 新しい選択状態を追加
-      return [...filteredItems, { shopId, eventDateId, isAttending: newAttendingValue }];
+      return [...filteredItems, { shopId, eventDateId, isAttending: isCurrentlyAttending }];
     });
   };
 
@@ -204,45 +205,44 @@ export function ShopsClient({ initialShops, events }: { initialShops: Shop[], ev
 
   // 一括更新処理
   const handleBatchUpdate = async () => {
-    if (selectedAttendances.length === 0) {
-      toast({
-        title: '注意',
-        description: '更新する出店日が選択されていません',
-        variant: 'default'
-      });
-      return;
-    }
-
-    setIsBatchProcessing(true);
+    if (selectedAttendances.length === 0) return;
     
-    let successCount = 0;
-    let failureCount = 0;
-
-    // 選択された出店日を1つずつ処理
-    for (const attendance of selectedAttendances) {
-      const success = await updateAttendance(
-        attendance.shopId,
-        attendance.eventDateId,
-        attendance.isAttending
-      );
-
-      if (success) {
-        successCount++;
-      } else {
-        failureCount++;
+    try {
+      setIsBatchProcessing(true);
+      setIsBulkUpdating(true); // 一括更新中のフラグを設定
+      
+      // APIリクエスト用のデータを整形
+      const updateRequests = selectedAttendances.map(({ shopId, eventDateId, isAttending }) => {
+        return updateAttendance(shopId, eventDateId, isAttending);
+      });
+      
+      // 全てのリクエストを並行処理
+      await Promise.all(updateRequests);
+      
+      // 成功メッセージ
+      toast({
+        title: "成功",
+        description: `${selectedAttendances.length}件の出店情報を更新しました`,
+      });
+      
+      // 選択をクリア
+      setSelectedAttendances([]);
+      
+      // 出店情報を再取得
+      if (selectedEventId) {
+        await fetchAttendanceData(selectedEventId);
       }
+    } catch (error) {
+      console.error("バッチ更新エラー:", error);
+      toast({
+        title: "エラー",
+        description: "出店情報の一括更新に失敗しました",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBatchProcessing(false);
+      setIsBulkUpdating(false); // 一括更新フラグを解除
     }
-
-    // 処理完了後、選択をクリア
-    setSelectedAttendances([]);
-    setIsBatchProcessing(false);
-
-    // 結果を通知
-    toast({
-      title: '更新完了',
-      description: `${successCount}件の更新に成功し、${failureCount}件の更新に失敗しました`,
-      variant: failureCount > 0 ? 'destructive' : 'default'
-    });
   };
   
   // 出店日を一括で設定/解除する処理
@@ -348,6 +348,42 @@ export function ShopsClient({ initialShops, events }: { initialShops: Shop[], ev
     }
   };
 
+  const renderAttendanceControls = () => (
+    <div className="flex justify-end space-x-2 mb-4">
+      <Button
+        onClick={handleBatchUpdate}
+        disabled={selectedAttendances.length === 0 || isBatchProcessing}
+        className="bg-green-600 hover:bg-green-700"
+      >
+        {isBatchProcessing ? (
+          <div className="flex items-center">
+            <Spinner size="sm" className="mr-2" />
+            <span>処理中...</span>
+          </div>
+        ) : (
+          <span>選択した{selectedAttendances.length}件を更新</span>
+        )}
+      </Button>
+      
+      <Button
+        onClick={() => handleBulkAttendanceUpdate('all', true)}
+        disabled={isBulkUpdating || eventDates.length === 0}
+        variant="outline"
+      >
+        全店舗・全日程を出店に設定
+      </Button>
+      
+      <Button
+        onClick={() => handleBulkAttendanceUpdate('all', false)}
+        disabled={isBulkUpdating || eventDates.length === 0}
+        variant="outline"
+        className="text-red-600 border-red-600 hover:bg-red-50"
+      >
+        全店舗・全日程を未出店に設定
+      </Button>
+    </div>
+  );
+
   return (
     <div>
       <div className="mb-8 sm:flex sm:items-center sm:justify-between">
@@ -410,27 +446,7 @@ export function ShopsClient({ initialShops, events }: { initialShops: Shop[], ev
         </div>
       </div>
 
-      {selectedEventId && selectedEventId !== "" && (
-        <div className="flex justify-end mb-4">
-          <button
-            onClick={handleBatchUpdate}
-            disabled={isBatchProcessing || selectedAttendances.length === 0}
-            className={`inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 ${(isBatchProcessing || selectedAttendances.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            {isBatchProcessing ? (
-              <>
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                処理中...
-              </>
-            ) : (
-              <>出店日一括更新 ({selectedAttendances.length}件)</>  
-            )}
-          </button>
-        </div>
-      )}
+      {renderAttendanceControls()}
 
       {selectedEventId && selectedEventId !== "" ? (
         <div className="mt-8 flow-root">

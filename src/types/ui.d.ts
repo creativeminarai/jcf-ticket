@@ -16,7 +16,7 @@ declare module '@/components/ui/badge' {
   import { HTMLAttributes } from 'react';
   import { VariantProps } from 'class-variance-authority';
 
-  const badgeVariants: (props?: any) => string;
+  const badgeVariants: (props?: Record<string, unknown>) => string;
 
   export interface BadgeProps
     extends HTMLAttributes<HTMLDivElement>,

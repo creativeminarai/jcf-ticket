@@ -1,7 +1,9 @@
 // SQLスクリプトをSupabaseに適用するためのスクリプト
-require('dotenv').config({ path: '.env.local' });
-const { createClient } = require('@supabase/supabase-js');
-const fs = require('fs');
+import dotenv from 'dotenv';
+import { createClient } from '@supabase/supabase-js';
+import fs from 'fs';
+
+dotenv.config({ path: '.env.local' });
 
 // Supabaseクライアントの初期化
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

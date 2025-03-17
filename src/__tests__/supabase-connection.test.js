@@ -1,7 +1,7 @@
 // @ts-check
-const { createClient } = require('@supabase/supabase-js');
-const fs = require('fs');
-const path = require('path');
+import { createClient } from '@supabase/supabase-js';
+import fs from 'fs';
+import path from 'path';
 
 /**
  * Supabase接続テスト

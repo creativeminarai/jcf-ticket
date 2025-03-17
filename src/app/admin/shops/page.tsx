@@ -1,6 +1,5 @@
 import { ShopsClient } from "./ShopsClient";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { Event } from "@/types/shop";
 
 export default async function ShopsPage() {
   let shops = [];

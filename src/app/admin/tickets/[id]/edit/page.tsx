@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import type { Database } from "@/types/database.types";
+import React from 'react';
 
 type PriceSchedule = {
   id?: string; // 既存の価格スケジュールにはIDがある
@@ -14,16 +15,6 @@ type PriceSchedule = {
 
 const TICKET_CATEGORIES = ["当日券", "前売り券", "追加券"] as const;
 type TicketCategory = typeof TICKET_CATEGORIES[number];
-
-type TicketType = {
-  id: string;
-  title: string;
-  description: string;
-  ticket_category: TicketCategory;
-  quantity: number;
-};
-
-import React from 'react';
 
 export default function EditTicketPage({ params }: { params: Promise<{ id: string }> }) {
   // paramsをReact.use()でアンラップしてから使用する

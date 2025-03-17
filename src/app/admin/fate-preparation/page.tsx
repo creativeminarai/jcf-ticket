@@ -11,7 +11,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import type { Database } from "@/types/database.types";
 import { useToast } from "@/components/ui/use-toast";
-import { Label } from "@/components/ui/label";
 import { Sparkles, Trash2, Plus } from "lucide-react";
 
 // データ型定義
@@ -20,28 +19,10 @@ type EventDate = Database["public"]["Tables"]["EventDate"]["Row"];
 type Shop = Database["public"]["Tables"]["Shop"]["Row"] & {
   destiny_ratio?: number;
 };
-type ShopAttendance = Database["public"]["Tables"]["ShopAttendance"]["Row"];
 type FateTicket = Database["public"]["Tables"]["FateTicket"]["Row"] & {
   Shop: {
     shop_name?: string;
     shop_code?: string;
-  };
-};
-type FateBatch = Database["public"]["Tables"]["FateBatch"]["Row"];
-
-// 出店者情報の型定義を修正
-type ShopAttendanceWithShop = {
-  id: string;
-  shop_id: string;
-  Shop: {
-    id: string;
-    name: string;
-    shop_code?: string;
-    shop_name?: string;
-    image_url: string | null;
-    deleted_at: string | null;
-    created_at: string;
-    updated_at: string;
   };
 };
 
@@ -217,9 +198,6 @@ export default function FatePreparationPage() {
     try {
       setIsLoadingTickets(true);
       
-      // ページネーションの設定
-      const pageSize = 10;
-      
       // APIエンドポイントを使用してチケットを取得
       const response = await fetch("/api/admin/fate-tickets", {
         method: "POST",
@@ -299,6 +277,7 @@ export default function FatePreparationPage() {
       }
       
       const result = await response.json();
+      console.log("削除結果:", result);
       
       // 成功メッセージ
       toast({
@@ -339,7 +318,9 @@ export default function FatePreparationPage() {
     try {
       // ローディング状態を設定
       setIsCreatingTickets(true);
+      setIsLoading(true); // 全体のローディング状態も設定
       console.log("運命チケット作成開始");
+      console.log(`選択された日付: ${selectedDateString}`); // selectedDateStringを使用
 
       // APIリクエストデータの準備
       const requestData = {
@@ -390,6 +371,7 @@ export default function FatePreparationPage() {
       });
     } finally {
       setIsCreatingTickets(false);
+      setIsLoading(false); // ローディング状態を解除
       console.log("運命チケット作成処理完了");
     }
   };
