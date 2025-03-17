@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import Image from "next/image";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import type { EventWithDates, Database } from "@/types/database.types";
 
