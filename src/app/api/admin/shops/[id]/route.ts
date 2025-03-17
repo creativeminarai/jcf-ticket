@@ -1,21 +1,22 @@
+import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
 import { Database } from "@/types/database.types";
 
 // GET: 特定の出店者情報を取得
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = createRouteHandlerClient<Database>({ cookies });
+    const { id } = await context.params;
 
     // 出店者情報を取得
     const { data: shop, error } = await supabase
       .from("Shop")
       .select("*")
-      .eq("id", params.id)
+      .eq("id", id)
       .single();
 
     if (error) throw error;
@@ -38,11 +39,12 @@ export async function GET(
 
 // PUT: 出店者情報を更新
 export async function PUT(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = createRouteHandlerClient<Database>({ cookies });
+    const { id } = await context.params;
     const body = await request.json();
 
     // 更新するデータを準備
@@ -63,14 +65,14 @@ export async function PUT(
     const { data: shop, error } = await supabase
       .from("Shop")
       .update(updateData)
-      .eq("id", params.id)
+      .eq("id", id)
       .select()
       .single();
 
     if (error) throw error;
     if (!shop) {
       return NextResponse.json(
-        { error: "出店者が見つかりません" },
+        { params: context.params, error: "出店者が見つかりません" },
         { status: 404 }
       );
     }

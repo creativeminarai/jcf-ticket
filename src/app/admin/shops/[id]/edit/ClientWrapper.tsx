@@ -3,19 +3,18 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import ShopForm from "@/components/shops/ShopForm";
-import type { Database } from "@/types/database.types";
+import type { Database, ShopWithDetails } from "@/types/database.types";
 import type { ShopAttendance } from "@/types/shopAttendance";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 // 型定義
-type Shop = Database['public']['Tables']['Shop']['Row'];
 type Event = Database['public']['Tables']['Event']['Row'] & {
   EventDate: Database['public']['Tables']['EventDate']['Row'][]
 };
 
 // 明示的に型をエクスポート
 export interface ClientWrapperProps {
-  shop: Shop | null;
+  shop: ShopWithDetails | null;
   event: Event | null;
   events: Event[];
 }
@@ -25,7 +24,7 @@ const ClientWrapper: React.FC<ClientWrapperProps> = ({ shop, event, events }) =>
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (updatedShop: Shop, attendances?: ShopAttendance[]) => {
+  const handleSubmit = async (updatedShop: ShopWithDetails, attendances?: ShopAttendance[]) => {
     if (!shop) return;
     
     setIsLoading(true);

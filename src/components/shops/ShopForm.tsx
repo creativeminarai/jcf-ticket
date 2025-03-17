@@ -9,22 +9,21 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import type { Database } from "@/types/database.types";
+import type { Database, ShopWithDetails } from "@/types/database.types";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import type { ShopAttendance, EventDateWithAttendance } from "@/types/shopAttendance";
 import { useToast } from "../ui/use-toast";
 
 // 型定義
-type Shop = Database['public']['Tables']['Shop']['Row'];
 type Event = Database['public']['Tables']['Event']['Row'] & {
   EventDate: Database['public']['Tables']['EventDate']['Row'][]
 };
 
 interface ShopFormProps {
-  shop?: Shop | null;
+  shop?: ShopWithDetails | null;
   event?: Event | null;
   events: Event[];
-  onSubmit: (data: Shop, attendances?: ShopAttendance[]) => void;
+  onSubmit: (data: ShopWithDetails, attendances?: ShopAttendance[]) => void;
   isLoading?: boolean;
 }
 
@@ -133,7 +132,7 @@ export default function ShopForm({ shop, event: initialEvent, events, onSubmit, 
         const eventDatesWithAttendance = event.EventDate.map(date => ({
           id: date.id,
           date: date.date,
-          time: date.time || '',
+          time: '',
           event_id: date.event_id,
           isAttending: false,
           shopAttendanceId: undefined
@@ -229,21 +228,19 @@ export default function ShopForm({ shop, event: initialEvent, events, onSubmit, 
     const shopCode = `${selectedEvent.event_number?.toString().padStart(3, '0')}-c${shopNumberNumeric.padStart(4, '0')}`;
     
     // 送信データの作成
-    const submitData: Shop = {
+    const submitData: ShopWithDetails = {
       id: shop?.id || "",
-      name: shop?.name || "Shop", // 必須フィールド
-      description: shop?.description || null,
-      image_url: shop?.image_url || null,
       shop_code: shopCode,
       shop_name: data.shop_name,
       coffee_name: data.coffee_name,
-      greeting: data.greeting || null,
+      greeting: data.greeting,
       roast_level: data.roast_level,
-      pr_url: data.pr_url || null,
+      pr_url: data.pr_url,
       destiny_ratio: data.destiny_ratio,
       ticket_count: data.ticket_count,
-      notes: data.notes || null,
-      deleted_at: shop?.deleted_at || null,
+      image_url: data.image_url || null,
+      notes: data.notes,
+      deleted_at: null,
       created_at: shop?.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString()
     };

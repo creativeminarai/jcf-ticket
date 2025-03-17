@@ -210,7 +210,7 @@ export default function ShopList({ shops, events, onDeleteShop, isLoading = fals
                         variant="outline"
                         className="cursor-default"
                       >
-                        {formatAttendancePattern(attendancePattern)}
+                        {attendancePattern ? formatAttendancePattern(attendancePattern) : '未設定'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">

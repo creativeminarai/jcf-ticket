@@ -294,3 +294,13 @@ export type EventWithDates = Database['public']['Tables']['Event']['Row'] & {
   EventDate?: Database['public']['Tables']['EventDate']['Row'][];
   event_number?: number;
 };
+
+// 出店者の詳細情報を含む拡張型
+export type ShopWithDetails = Database['public']['Tables']['Shop']['Row'] & {
+  coffee_name?: string;
+  greeting?: string;
+  roast_level?: string;
+  pr_url?: string;
+  ticket_count?: number;
+  notes?: string;
+};

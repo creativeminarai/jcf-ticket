@@ -244,35 +244,17 @@ export function EventsClient({ initialEvents }: { initialEvents: EventWithDates[
                       <tr key={event.id}>
                         <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
                           <div className="flex items-center">
-                            {event.image_url ? (
-                              <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-md">
-                                <Image
-                                  src={event.image_url}
-                                  alt={event.name}
-                                  width={56}
-                                  height={56}
-                                  className="h-full w-full object-cover object-center"
-                                  priority
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    console.error(`Image load error: ${target.src}`);
-                                    // プレースホルダー画像を表示
-                                    target.src = '/placeholder-image.png';
-                                    target.onerror = null; // 無限ループ防止
-                                  }}
-                                />
-                              </div>
-                            ) : (
-                              <div className="h-14 w-14 flex-shrink-0 rounded-md bg-gray-100 flex items-center justify-center">
-                                <span className="text-gray-400 text-xs">画像なし</span>
-                              </div>
-                            )}
+                            <div className="h-14 w-14 flex-shrink-0 rounded-md bg-gray-100 flex items-center justify-center">
+                              <span className="text-gray-600 text-sm font-medium">
+                                #{event.event_number || '新規'}
+                              </span>
+                            </div>
                             <div className="ml-4">
                               <div className="font-medium text-gray-900">
                                 {event.name}
                               </div>
                               <div className="text-gray-500">
-                                {event.theme || "テーマなし"}
+                                {event.description || "説明なし"}
                               </div>
                             </div>
                           </div>

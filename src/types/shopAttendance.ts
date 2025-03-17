@@ -17,7 +17,7 @@ export type ShopAttendance = {
 export type EventDateWithAttendance = {
   id: string;
   date: string;
-  time: string;
+  time?: string;
   event_id: string;
   isAttending?: boolean; // 出店するかどうかのフラグ
   shopAttendanceId?: string; // 対応するShopAttendanceのID

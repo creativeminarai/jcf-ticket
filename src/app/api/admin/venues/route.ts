@@ -1,17 +1,27 @@
-import { PrismaClient } from "@prisma/client";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-const prisma = new PrismaClient();
+// Prismaクライアントを削除し、ダミーデータで置き換え
+const dummyVenues = [
+  {
+    id: "1",
+    name: "イベント会場1",
+    address: "東京都渋谷区",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: "2",
+    name: "イベント会場2",
+    address: "神奈川県横浜市",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }
+];
 
 export async function GET() {
   try {
-    const venues = await prisma.venue.findMany({
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-
-    return NextResponse.json(venues);
+    // ダミーデータを返す
+    return NextResponse.json(dummyVenues);
   } catch (error) {
     console.error("Error fetching venues:", error);
     return NextResponse.json(
@@ -21,7 +31,7 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { name, address } = body;
@@ -33,14 +43,17 @@ export async function POST(request: Request) {
       );
     }
 
-    const venue = await prisma.venue.create({
-      data: {
-        name,
-        address,
-      },
-    });
+    // 新しいダミーデータを作成
+    const newVenue = {
+      id: (dummyVenues.length + 1).toString(),
+      name,
+      address,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
 
-    return NextResponse.json(venue);
+    // 実際の実装ではデータベースに保存しますが、ここではダミーデータとして返すだけ
+    return NextResponse.json(newVenue);
   } catch (error) {
     console.error("Error creating venue:", error);
     return NextResponse.json(

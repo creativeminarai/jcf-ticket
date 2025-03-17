@@ -1,7 +1,11 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { Event } from "@/types/database.types";
+import type { Database } from "@/types/database.types";
 import ClientWrapper from "./ClientWrapper";
 
+// Event型を定義
+type Event = Database['public']['Tables']['Event']['Row'] & {
+  EventDate: Database['public']['Tables']['EventDate']['Row'][]
+};
 
 export default async function NewShopPage() {
   // イベント一覧を取得
