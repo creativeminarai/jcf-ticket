@@ -48,15 +48,27 @@ const shopFormSchema = z.object({
 // 店舗コードをパースする関数
 function parseShopCode(shopCode: string) {
   // 正規表現で店舗コードをパース
-  // フォーマット: イベント番号-c店舗番号
-  // 例: 0073-c0016
+  // 新フォーマット: イベント番号-c店舗番号
+  // 例: 073-c0016
   const match = shopCode.match(/^(\d+)-c(\d+)$/);  
   
   if (match) {
     // 新しいフォーマットに一致した場合
     return {
       shopNumber: match[2],  // 店舗番号部分
-      attendanceDates: []    // 新フォーマットでは日付情報は含まない
+      attendanceDates: []    // 日付情報は使用しない
+    };
+  }
+  
+  // 旧フォーマット: イベント番号-c店舗番号-出店パターン
+  // 例: 073-c0016-0000011
+  const oldMatch = shopCode.match(/^(\d+)-c(\d+)-\d+$/);
+  
+  if (oldMatch) {
+    // 旧フォーマットに一致した場合
+    return {
+      shopNumber: oldMatch[2],  // 店舗番号部分
+      attendanceDates: []       // 日付情報は使用しない
     };
   }
   
@@ -79,22 +91,8 @@ function generateShopCode(shopNumber: string, attendanceDates: string[]): string
   const paddedNumber = shopNumber.padStart(4, '0');
   const shopNumberPart = 'c' + paddedNumber;
   
-  // 0000011 (日付部分) - 7桁で固定
-  // 重要: 日付部分は右から左に向かってインデックスが増える
-  // つまり、最初の日付は一番右のビットになる
-  let datePart = '0000000';
-  attendanceDates.forEach(dateIndex => {
-    const index = parseInt(dateIndex, 10);
-    if (index >= 0 && index < datePart.length) {
-      // インデックスを反転させて正しい位置に配置
-      const reverseIndex = datePart.length - 1 - index;
-      // 該当する位置を1に変更
-      datePart = datePart.substring(0, reverseIndex) + '1' + datePart.substring(reverseIndex + 1);
-    }
-  });
-  
-  // ハイフン区切りの形式にフォーマット
-  return prefix + '-' + shopNumberPart + '-' + datePart;
+  // 新しい形式: 073-c0016
+  return `${prefix}-${shopNumberPart}`;
 }
 
 export default function ShopForm({ shop, event: initialEvent, events, onSubmit, isLoading = false }: ShopFormProps) {

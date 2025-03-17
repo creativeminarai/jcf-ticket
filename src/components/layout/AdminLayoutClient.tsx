@@ -28,6 +28,7 @@ export default function AdminLayoutClient({
     { href: "/admin/events", label: "イベント" },
     { href: "/admin/shops", label: "出店者" },
     { href: "/admin/tickets", label: "チケット" },
+    { href: "/admin/fate-preparation", label: "運命の準備" },
   ];
 
   return (

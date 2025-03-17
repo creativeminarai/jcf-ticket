@@ -41,6 +41,44 @@ export interface Database {
           updated_at?: string
         }
       }
+      BatchQueue: {
+        Row: {
+          id: string
+          requested_at: string
+          priority: string
+          status: string
+          processed_at: string | null
+          batch_id: string | null
+          error_message: string | null
+          deleted_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          requested_at: string
+          priority: string
+          status: string
+          processed_at?: string | null
+          batch_id?: string | null
+          error_message?: string | null
+          deleted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          requested_at?: string
+          priority?: string
+          status?: string
+          processed_at?: string | null
+          batch_id?: string | null
+          error_message?: string | null
+          deleted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
       Event: {
         Row: {
           id: string
@@ -103,6 +141,114 @@ export interface Database {
           event_id?: string
           date?: string
           time?: string
+          deleted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      FateBatch: {
+        Row: {
+          id: string
+          batch_size: number
+          status: string
+          created_at: string
+          activated_at: string | null
+          completed_at: string | null
+          deleted_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          batch_size: number
+          status: string
+          created_at: string
+          activated_at?: string | null
+          completed_at?: string | null
+          deleted_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          batch_size?: number
+          status?: string
+          created_at?: string
+          activated_at?: string | null
+          completed_at?: string | null
+          deleted_at?: string | null
+          updated_at?: string
+        }
+      }
+      FateTicket: {
+        Row: {
+          id: string
+          batch_id: string
+          shop_id: string
+          event_id: string
+          event_date_id: string | null
+          fate_position: number | null
+          status: string
+          is_drawn: boolean
+          drawn_at: string | null
+          drawn_by_id: string | null
+          deleted_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          batch_id: string
+          shop_id: string
+          event_id: string
+          event_date_id?: string | null
+          fate_position?: number | null
+          status: string
+          is_drawn?: boolean
+          drawn_at?: string | null
+          drawn_by_id?: string | null
+          deleted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          batch_id?: string
+          shop_id?: string
+          event_id?: string
+          event_date_id?: string | null
+          fate_position?: number | null
+          status?: string
+          is_drawn?: boolean
+          drawn_at?: string | null
+          drawn_by_id?: string | null
+          deleted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      FateTicketTransferHistory: {
+        Row: {
+          id: string
+          fate_ticket_id: string
+          transfer_date: string
+          staff_name: string | null
+          deleted_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          fate_ticket_id: string
+          transfer_date: string
+          staff_name?: string | null
+          deleted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          fate_ticket_id?: string
+          transfer_date?: string
+          staff_name?: string | null
           deleted_at?: string | null
           created_at?: string
           updated_at?: string
@@ -196,6 +342,61 @@ export interface Database {
           pr_url?: string | null
           destiny_ratio?: number
           ticket_count?: number
+          notes?: string | null
+          deleted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      Setting: {
+        Row: {
+          id: string
+          threshold: number
+          updated_at: string | null
+          updated_by_id: string | null
+          deleted_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          threshold: number
+          updated_at?: string | null
+          updated_by_id?: string | null
+          deleted_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          threshold?: number
+          updated_at?: string | null
+          updated_by_id?: string | null
+          deleted_at?: string | null
+          created_at?: string
+        }
+      }
+      ShopAttendance: {
+        Row: {
+          id: string
+          shop_id: string
+          event_date_id: string
+          notes: string | null
+          deleted_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          shop_id: string
+          event_date_id: string
+          notes?: string | null
+          deleted_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          shop_id?: string
+          event_date_id?: string
           notes?: string | null
           deleted_at?: string | null
           created_at?: string

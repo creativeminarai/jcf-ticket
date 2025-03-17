@@ -17,6 +17,11 @@ export default function AdminPage() {
       description: "チケット種別と価格の管理",
       href: "/admin/tickets",
     },
+    {
+      title: "運命の準備",
+      description: "運命のチケット生成と管理",
+      href: "/admin/fate-preparation",
+    },
   ];
 
   return (

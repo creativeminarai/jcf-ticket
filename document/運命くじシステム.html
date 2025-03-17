@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>運命くじシステム データベース状態遷移（更新版）</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .timeline {
+            position: relative;
+            max-width: 1200px;
+            margin: 20px auto;
+        }
+        .timeline::after {
+            content: '';
+            position: absolute;
+            width: 6px;
+            background-color: #3498db;
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            margin-left: -3px;
+            border-radius: 3px;
+        }
+        .step {
+            padding: 10px 40px;
+            position: relative;
+            width: 45%;
+            box-sizing: border-box;
+            margin-bottom: 30px;
+        }
+        .left {
+            left: 0;
+        }
+        .right {
+            left: 55%;
+        }
+        .step::after {
+            content: '';
+            position: absolute;
+            width: 25px;
+            height: 25px;
+            right: -17px;
+            background-color: white;
+            border: 4px solid #3498db;
+            top: 15px;
+            border-radius: 50%;
+            z-index: 1;
+        }
+        .left::after {
+            right: -17px;
+        }
+        .right::after {
+            left: -17px;
+        }
+        .step-content {
+            padding: 20px;
+            background-color: white;
+            position: relative;
+            border-radius: 6px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            border-left: 5px solid #3498db;
+        }
+        .db-state {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px 15px;
+            margin-top: 15px;
+            font-family: monospace;
+            font-size: 14px;
+            position: relative;
+        }
+        .db-title {
+            position: absolute;
+            top: -12px;
+            left: 15px;
+            background-color: #3498db;
+            color: white;
+            padding: 2px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .step-title {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        .note {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px 15px;
+            margin-top: 15px;
+            border-radius: 4px;
+        }
+        .highlight {
+            background-color: #ffffcc;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .table-header {
+            font-weight: bold;
+            margin-bottom: 5px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+        }
+        .null-value {
+            color: #999;
+            font-style: italic;
+        }
+        .summary {
+            background-color: #d1ecf1;
+            border-left: 4px solid #0c5460;
+            padding: 15px;
+            margin: 30px 0;
+            border-radius: 4px;
+        }
+        .new-feature {
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 10px 15px;
+            margin-top: 15px;
+            border-radius: 4px;
+        }
+        @media screen and (max-width: 768px) {
+            .timeline::after {
+                left: 31px;
+            }
+            .step {
+                width: 100%;
+                padding-left: 70px;
+                padding-right: 25px;
+            }
+            .left, .right {
+                left: 0;
+            }
+            .left::after, .right::after {
+                left: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>運命くじシステム - バッチ生成と状態遷移の詳細（更新版）</h1>
+        
+        <div class="summary">
+            <h3>BatchQueueとFateBatchの関係について</h3>
+            <p>バッチキュー（BatchQueue）は最初に<span class="highlight">batch_id = null</span>で作成され、後からバッチ生成時に更新されます。この設計により、キュー作成→バッチ生成→キュー更新という論理的なフローが維持されます。</p>
+        </div>
+        
+        <div class="new-feature">
+            <h3>イベント日付IDに基づく出店店舗の絞り込み - 新機能</h3>
+            <p>新しい仕様では、<span class="highlight">イベントIDとイベント日付ID</span>の両方を検索キーとして使用し、<span class="highlight">その特定の日に出店する店舗のみ</span>を対象に運命チケットを生成します。これにより、各イベント日に合わせた正確なくじ引き体験が提供されます。</p>
+            <p>実装では、ShopAttendanceテーブルを使用してイベント日付IDで検索し、その日に出店する店舗のみを取得します。論理削除（deleted_at IS NOT NULL）されている店舗は対象から除外されます。</p>
+        </div>
+        
+        <div class="timeline">
+            <!-- ステップ1: バッチキュー作成 -->
+            <div class="step left">
+                <div class="step-content">
+                    <div class="step-title">1. バッチキュー作成</div>
+                    <p>ユーザーまたはシステムによって、新しいバッチ生成のリクエストが発生します。<span class="highlight">イベントIDとイベント日付ID</span>が指定されます。</p>
+                    
+                    <div class="db-state">
+                        <div class="db-title">BatchQueue</div>
+                        <div class="table-header">id = "queue123"（新規作成）</div>
+                        <pre>
+requested_at: 2025-03-17 10:15:00
+priority: "normal"
+status: <span class="highlight">"pending"</span>
+processed_at: <span class="null-value">null</span>
+batch_id: <span class="highlight null-value">null</span>
+error_message: <span class="null-value">null</span>
+deleted_at: <span class="null-value">null</span>
+                        </pre>
+                    </div>
+                    
+                    <div class="note">
+                        重要: この段階ではまだバッチが作成されていないため、<code>batch_id</code>は<code>null</code>です。
+                        イベントIDとイベント日付IDはアプリケーションの状態やメタデータとして保持されます。
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 新ステップ: 参加店舗の取得 -->
+            <div class="step right">
+                <div class="step-content">
+                    <div class="step-title">2. 参加店舗の取得</div>
+                    <p><span class="highlight">ShopAttendanceテーブルから、指定されたイベント日付に参加する店舗のみを取得</span>します。論理削除された店舗は除外されます。</p>
+                    
+                    <div class="db-state">
+                        <div class="db-title">ShopAttendance検索</div>
+                        <div class="table-header">検索条件</div>
+                        <pre>
+SELECT shop_id FROM ShopAttendance
+WHERE event_id = "event001"
+AND event_date_id = "event_date001"
+AND deleted_at IS NULL
+                        </pre>
+                    </div>
+                    
+                    <div class="db-state">
+                        <div class="db-title">Shop検索</div>
+                        <div class="table-header">検索条件（参加店舗のみ）</div>
+                        <pre>
+SELECT id, name, weight FROM Shop
+WHERE id IN (取得した参加店舗ID)
+AND deleted_at IS NULL
+                        </pre>
+                    </div>
+                    
+                    <div class="new-feature">
+                        この新しいステップにより、特定の日付に出店する店舗のみが対象となります。
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ステップ3: バッチ作成（旧ステップ2） -->
+            <div class="step left">
+                <div class="step-content">
+                    <div class="step-title">3. バッチ作成</div>
+                    <p>キューが処理され、新しい運命バッチが作成されます。<span class="highlight">参加店舗のみ</span>の比重に基づいてバッチサイズが決定されます。</p>
+                    
+                    <div class="db-state">
+                        <div class="db-title">FateBatch</div>
+                        <div class="table-header">id = "batch456"（新規作成）</div>
+                        <pre>
+batch_size: 100  <span class="highlight">// 参加店舗の比重合計</span>
+status: <span class="highlight">"pending"</span>
+created_at: 2025-03-17 10:15:30
+activated_at: <span class="null-value">null</span>
+completed_at: <span class="null-value">null</span>
+deleted_at: <span class="null-value">null</span>
+                        </pre>
+                    </div>
+                    
+                    <div class="note">
+                        バッチは「pending」状態で作成され、この時点ではまだ活性化されていません。
+                        イベント日付に関する情報はアプリケーションの状態またはメタデータとして管理されます。
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ステップ4: バッチキュー更新（旧ステップ3） -->
+            <div class="step right">
+                <div class="step-content">
+                    <div class="step-title">4. バッチキュー更新</div>
+                    <p>バッチが作成されたら、バッチキューが更新され、新しく作成されたバッチのIDが関連付けられます。</p>
+                    
+                    <div class="db-state">
+                        <div class="db-title">BatchQueue</div>
+                        <div class="table-header">id = "queue123"（更新）</div>
+                        <pre>
+requested_at: 2025-03-17 10:15:00
+priority: "normal"
+status: <span class="highlight">"processing"</span>
+processed_at: 2025-03-17 10:15:30
+batch_id: <span class="highlight">"batch456"</span>
+error_message: <span class="null-value">null</span>
+deleted_at: <span class="null-value">null</span>
+                        </pre>
+                    </div>
+                    
+                    <div class="note">
+                        この段階で<code>batch_id</code>が更新され、作成されたバッチへの参照が保存されます。
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ステップ5: チケット生成（旧ステップ4） -->
+            <div class="step left">
+                <div class="step-content">
+                    <div class="step-title">5. チケット生成</div>
+                    <p>バッチの作成後、<span class="highlight">参加店舗のみ</span>の比重に応じたチケットが生成されます。</p>
+                    
+                    <div class="db-state">
+                        <div class="db-title">FateTicket（複数レコード）</div>
+                        <div class="table-header">新規作成されたチケットの例</div>
+                        <pre>
+id: "ticket789"
+batch_id: <span class="highlight">"batch456"</span>
+shop_id: "shop001"  <span class="highlight">// ShopAttendanceから取得した参加店舗のみ</span>
+event_id: "event001"
+fate_position: <span class="null-value">null</span>
+status: "pending"
+is_drawn: false
+drawn_at: <span class="null-value">null</span>
+drawn_by_id: <span class="null-value">null</span>
+deleted_at: <span class="null-value">null</span>
+                        </pre>
+                    </div>
+                    
+                    <div class="note">
+                        この段階では各チケットは「pending」状態で、fate_positionはまだ割り当てられていません。
+                        イベント日付IDに関する情報は、アプリケーションの状態またはメタデータで管理されます。
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ステップ6: チケットシャッフルとバッチ有効化（旧ステップ5） -->
+            <div class="step right">
+                <div class="step-content">
+                    <div class="step-title">6. チケットシャッフルとバッチ有効化</div>
+                    <p>チケットがシャッフルされ、各チケットに位置番号が割り当てられます。バッチのステータスが「active」に更新されます。</p>
+                    
+                    <div class="db-state">
+                        <div class="db-title">FateTicket（更新）</div>
+                        <pre>
+id: "ticket789"
+batch_id: "batch456"
+shop_id: "shop001"
+event_id: "event001"
+fate_position: <span class="highlight">42</span>
+status: <span class="highlight">"active"</span>
+is_drawn: false
+drawn_at: <span class="null-value">null</span>
+drawn_by_id: <span class="null-value">null</span>
+deleted_at: <span class="null-value">null</span>
+                        </pre>
+                    </div>
+                    
+                    <div class="db-state">
+                        <div class="db-title">FateBatch（更新）</div>
+                        <pre>
+id: "batch456"
+batch_size: 100
+status: <span class="highlight">"active"</span>
+created_at: 2025-03-17 10:15:30
+activated_at: <span class="highlight">2025-03-17 10:16:15</span>
+completed_at: <span class="null-value">null</span>
+deleted_at: <span class="null-value">null</span>
+                        </pre>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ステップ7: バッチキュー完了（旧ステップ6） -->
+            <div class="step left">
+                <div class="step-content">
+                    <div class="step-title">7. バッチキュー完了</div>
+                    <p>バッチが有効化されると、バッチキューのステータスが「completed」に更新されます。</p>
+                    
+                    <div class="db-state">
+                        <div class="db-title">BatchQueue（更新）</div>
+                        <pre>
+id: "queue123"
+requested_at: 2025-03-17 10:15:00
+priority: "normal"
+status: <span class="highlight">"completed"</span>
+processed_at: 2025-03-17 10:15:30
+batch_id: "batch456"
+error_message: <span class="null-value">null</span>
+deleted_at: <span class="null-value">null</span>
+                        </pre>
+                    </div>
+                    
+                    <div class="note">
+                        これでバッチ生成プロセスが完了し、システムはくじ引き操作の準備が整いました。
+                        対象店舗は<span class="highlight">指定されたイベント日付IDに参加している店舗のみ</span>に絞り込まれています。
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ステップ8: くじ引き操作（ユーザー）（旧ステップ7） -->
+            <div class="step right">
+                <div class="step-content">
+                    <div class="step-title">8. くじ引き操作（ユーザー）</div>
+                    <p>ユーザーがくじを引くと、チケットの状態が更新されます。</p>
+                    
+                    <div class="db-state">
+                        <div class="db-title">FateTicket（更新）</div>
+                        <pre>
+id: "ticket789"
+batch_id: "batch456"
+shop_id: "shop001"
+event_id: "event001"
+fate_position: 42
+status: "active"
+is_drawn: <span class="highlight">true</span>
+drawn_at: <span class="highlight">2025-03-17 14:22:10</span>
+drawn_by_id: <span class="highlight">"user123"</span>
+deleted_at: <span class="null-value">null</span>
+                        </pre>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ステップ9: 閾値チェックと次バッチ（旧ステップ8） -->
+            <div class="step left">
+                <div class="step-content">
+                    <div class="step-title">9. 閾値チェックと次バッチ生成</div>
+                    <p>残りのチケット数が閾値を下回った場合、<span class="highlight">同じイベントとイベント日付ID</span>で新しいバッチ生成サイクルが開始されます。</p>
+                    
+                    <div class="db-state">
+                        <div class="db-title">BatchQueue</div>
+                        <div class="table-header">id = "queue124"（新規作成）</div>
+                        <pre>
+requested_at: 2025-03-17 14:25:00
+priority: "normal"
+status: "pending"
+processed_at: <span class="null-value">null</span>
+batch_id: <span class="highlight null-value">null</span>
+error_message: <span class="null-value">null</span>
+deleted_at: <span class="null-value">null</span>
+                        </pre>
+                    </div>
+                    
+                    <div class="note">
+                        ここで再び新しいサイクルが始まり、最初は<code>batch_id = null</code>の状態からスタートします。
+                        <span class="highlight">同じイベント日付ID</span>に基づいて、ステップ2で参加店舗を再取得します。
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ステップ10: バッチ完了（旧ステップ9） -->
+            <div class="step right">
+                <div class="step-content">
+                    <div class="step-title">10. バッチ完了</div>
+                    <p>すべてのチケットが使用されると、バッチは完了状態に更新されます。</p>
+                    
+                    <div class="db-state">
+                        <div class="db-title">FateBatch（更新）</div>
+                        <pre>
+id: "batch456"
+batch_size: 100
+status: <span class="highlight">"completed"</span>
+created_at: 2025-03-17 10:15:30
+activated_at: 2025-03-17 10:16:15
+completed_at: <span class="highlight">2025-03-17 16:45:22</span>
+deleted_at: <span class="null-value">null</span>
+                        </pre>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ステップ11: 論理削除（旧ステップ10） -->
+            <div class="step left">
+                <div class="step-content">
+                    <div class="step-title">11. 論理削除（アーカイブ）</div>
+                    <p>管理者の判断または自動プロセスにより、古いバッチやキューが論理削除されます。</p>
+                    
+                    <div class="db-state">
+                        <div class="db-title">FateBatch（論理削除）</div>
+                        <pre>
+id: "batch456"
+batch_size: 100
+status: "completed"
+created_at: 2025-03-17 10:15:30
+activated_at: 2025-03-17 10:16:15
+completed_at: 2025-03-17 16:45:22
+deleted_at: <span class="highlight">2025-03-24 09:00:00</span>
+                        </pre>
+                    </div>
+                    
+                    <div class="db-state">
+                        <div class="db-title">BatchQueue（論理削除）</div>
+                        <pre>
+id: "queue123"
+requested_at: 2025-03-17 10:15:00
+priority: "normal"
+status: "completed"
+processed_at: 2025-03-17 10:15:30
+batch_id: "batch456"
+error_message: <span class="null-value">null</span>
+deleted_at: <span class="highlight">2025-03-24 09:00:00</span>
+                        </pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="summary">
+            <h3>データモデルと処理フローの整合性</h3>
+            <p>BatchQueueテーブルのbatch_idフィールドは、最初はnullで作成され、バッチ生成後に更新されるという処理フローを採用することで、論理的な矛盾を解決しています。</p>
+            <p>この設計により、バッチキューはバッチ生成リクエストの追跡と管理に役立ち、生成されたバッチへの参照を保持することができます。</p>
+        </div>
+        
+        <div class="new-feature">
+            <h3>イベント日付IDに基づく改善点のまとめ</h3>
+            <p>1. <strong>より正確な運命くじ生成</strong>: 特定の日に出店する店舗のみを対象にすることで、その日のイベント構成に合った運命くじ体験を提供</p>
+            <p>2. <strong>ムダなチケット生成の防止</strong>: イベントに参加していない店舗のチケットが生成されないため、リソースの無駄がなくなる</p>
+            <p>3. <strong>日付ごとの柔軟性</strong>: 同じイベントでも日によって出店する店舗が異なる場合に適切に対応</p>
+            <p>4. <strong>既存データベース構造の活用</strong>: データベーススキーマを変更せず、アプリケーションロジックとShopAttendanceテーブルの活用で要件を実現</p>
+        </div>
+    </div>
+</body>
+</html>

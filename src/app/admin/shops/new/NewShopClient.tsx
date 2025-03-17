@@ -7,37 +7,36 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { generateShopCode, getDefaultAttendancePattern } from "@/lib/utils/shop-code";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import type { Event } from "@/types/database.types";
+import type { EventWithDates } from "@/types/database.types";
 
 const ROAST_LEVELS = [
-  "ライト",
-  "シナモン",
-  "ミディアム",
-  "ハイ",
-  "シティ",
-  "フルシティ",
-  "フレンチ",
-  "イタリアン",
+  "極浅煎り",
+  "浅煎り",
+  "中浅煎り",
+  "中煎り",
+  "中深煎り",
+  "深煎り",
+  "極深煎り",
 ] as const;
 type RoastLevel = typeof ROAST_LEVELS[number];
 
 interface NewShopClientProps {
-  events: Event[];
+  events: EventWithDates[];
 }
 
 export default function NewShopClient({ events }: NewShopClientProps) {
   const router = useRouter();
   const [selectedEventId, setSelectedEventId] = useState<string>("");
-  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<EventWithDates | null>(null);
   
   const [formData, setFormData] = useState({
     shopNumber: "", // 店舗番号（3桁）
     shopName: "",
     coffeeName: "",
     greeting: "",
-    roastLevel: "ミディアム" as RoastLevel,
+    roastLevel: "中煎り" as RoastLevel,
     prUrl: "",
-    destinyRatio: 0.3,
+    destinyRatio: 5,
     ticketCount: 100,
     notes: "",
   });
@@ -74,15 +73,13 @@ export default function NewShopClient({ events }: NewShopClientProps) {
     
     try {
       const supabase = createClientComponentClient();
-      // 出席パターンの生成やデフォルト値の設定
-      const attendancePattern = getDefaultAttendancePattern(); // デフォルトで土日出席
-
-      // 適切なshop_codeの生成
+      // 出席パターンは不要になりました
+      
+      // 適切なshop_codeの生成（新形式: 173-c0004）
       const shop_code = generateShopCode({
         eventNumber: selectedEvent.event_number || 0,
         shopType: "c", // デフォルトでコーヒー出店者
         shopNumber: formData.shopNumber,
-        attendancePattern,
       });
       
       // Shopテーブルに新規登録
@@ -96,7 +93,7 @@ export default function NewShopClient({ events }: NewShopClientProps) {
             greeting: formData.greeting,
             roast_level: formData.roastLevel,
             pr_url: formData.prUrl,
-            destiny_ratio: Math.round(formData.destinyRatio * 10), // 0〜10の整数値で保存
+            destiny_ratio: formData.destinyRatio, // 0〜10の整数値で保存
             ticket_count: formData.ticketCount,
             image_url: imageUrl, // 実際の実装ではアップロードしたURLを使用
             notes: formData.notes,
@@ -274,20 +271,20 @@ export default function NewShopClient({ events }: NewShopClientProps) {
                 htmlFor="destinyRatio"
                 className="block text-sm font-medium text-gray-700"
               >
-                運命の出会い確率（0.0〜1.0）
+                運命の比重（0〜10）
               </label>
               <input
                 type="number"
                 name="destinyRatio"
                 id="destinyRatio"
                 min="0"
-                max="1"
-                step="0.1"
+                max="10"
+                step="1"
                 value={formData.destinyRatio}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    destinyRatio: parseFloat(e.target.value),
+                    destinyRatio: parseInt(e.target.value),
                   })
                 }
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"

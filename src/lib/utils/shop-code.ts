@@ -10,7 +10,7 @@ export interface ShopCodeComponents {
   eventNumber: number | string;
   shopType: string;
   shopNumber: string;
-  attendancePattern: string;
+  attendancePattern?: string; // 出店パターンはオプショナルに変更
 }
 
 /**
@@ -66,8 +66,16 @@ export function parseShopCode(shopCode: string): ShopCodeComponents {
  * @returns 生成されたshop_code
  */
 export function generateShopCode(components: ShopCodeComponents): string {
-  const { eventNumber, shopType, shopNumber, attendancePattern } = components;
-  return `${eventNumber}-${shopType}${shopNumber}-${attendancePattern}`;
+  const { eventNumber, shopType, shopNumber } = components;
+  
+  // イベント番号を3桁にパディング
+  const paddedEventNumber = String(eventNumber).padStart(3, '0');
+  
+  // 店舗番号を4桁にパディング
+  const paddedShopNumber = String(shopNumber).padStart(4, '0');
+  
+  // 修正した形式: 173-c0004
+  return `${paddedEventNumber}-${shopType}${paddedShopNumber}`;
 }
 
 /**
