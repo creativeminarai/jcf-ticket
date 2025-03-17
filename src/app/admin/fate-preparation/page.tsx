@@ -411,6 +411,15 @@ export default function FatePreparationPage() {
         </p>
       </div>
 
+      {isLoading && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl flex flex-col items-center">
+            <Spinner size="lg" className="mb-4" />
+            <p className="text-gray-800 font-medium">処理中...</p>
+          </div>
+        </div>
+      )}
+
       {/* イベント・日付選択 */}
       <Card>
         <CardHeader>
