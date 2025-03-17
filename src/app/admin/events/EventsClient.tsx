@@ -93,7 +93,7 @@ export function EventsClient({ initialEvents }: { initialEvents: EventWithDates[
     };
     
     sortEventsByStartDate();
-  }, [initialEvents]); // initialEventsが変更されたときにのみ実行
+  }, [initialEvents, events]); // initialEventsとeventsが変更されたときに実行
 
   // ステータス変更処理
   const handleStatusChange = async (eventId: string, newStatus: EventStatus) => {
@@ -125,7 +125,7 @@ export function EventsClient({ initialEvents }: { initialEvents: EventWithDates[
       // 別の方法でステータス更新を試みる
       try {
         // 方法1: 直接SQLを実行する方法は削除（エラーの原因になる可能性があるため）
-      } catch (rpcAttemptError) {
+      } catch {
         console.log("RPC method not available, trying direct update");
       }
       

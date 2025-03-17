@@ -6,9 +6,6 @@ import type { Database } from '@/types/database.types';
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-// テスト用のモックデータ
-const MOCK_TICKET_TYPE_ID = "c9f6a4d7-c8a9-4f0c-9c0a-1b2c3d4e5f6a";
-
 // サービスロールを使用したSupabaseクライアントを作成（RLSをバイパス）
 const createServiceRoleClient = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
@@ -60,7 +57,7 @@ export async function POST(req: NextRequest) {
       console.log("Webhook signature verification skipped (development mode)");
       try {
         event = JSON.parse(body);
-      } catch (e) {
+      } catch (error) {
         console.error("Invalid JSON in webhook body");
         return new NextResponse("Invalid JSON", { status: 400 });
       }
@@ -81,8 +78,8 @@ export async function POST(req: NextRequest) {
   // セッションイベントの場合、メタデータを取得
   if (event.type && event.type.startsWith('checkout.session.')) {
     const session = event.data.object as Stripe.Checkout.Session;
-    let userId = session.metadata?.userId;
-    let eventId = session.metadata?.eventId;
+    const userId = session.metadata?.userId;
+    const eventId = session.metadata?.eventId;
     let ticketTypeId = session.metadata?.ticketTypeId;
     
     console.log("Session metadata:", { userId, eventId, ticketTypeId });
@@ -200,7 +197,7 @@ export async function POST(req: NextRequest) {
         }
         
         // ユーザーが存在するか確認
-        const { data: userData, error: userError } = await supabase
+        const { error: userError } = await supabase
           .from("profiles")
           .select("id")
           .eq("id", userId)

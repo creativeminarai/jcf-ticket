@@ -88,10 +88,12 @@ export function CoffeeModal({ isOpen, onClose, selectedShop }: CoffeeModalProps)
                     <div className="w-32 h-32 rounded-full bg-amber-100 animate-pulse"></div>
                   </div>
                   <div className="w-full h-full relative overflow-hidden rounded-lg">
-                    <img
+                    <Image
                       src="/gif-output-Tue04Mar2025163644GMT.gif"
                       alt="coffee ripple animation"
-                      className="absolute inset-0 w-full h-full object-cover"
+                      className="absolute inset-0 object-cover"
+                      fill
+                      sizes="(max-width: 768px) 100vw, 50vw"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-amber-50/40 via-transparent to-transparent"></div>
                   </div>

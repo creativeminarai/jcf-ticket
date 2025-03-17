@@ -8,10 +8,9 @@ interface DestinyCoffeeProps {
   issuedShop: Shop | null;
   isLoading: boolean;
   onIssueTicket: () => void;
-  coffeeShops: Shop[]; // 互換性のために残します
 }
 
-export function DestinyCoffee({ issuedShop, isLoading, onIssueTicket, coffeeShops }: DestinyCoffeeProps) {
+export function DestinyCoffee({ issuedShop, isLoading, onIssueTicket }: DestinyCoffeeProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // issuedShopが変更されたときにモーダルを表示

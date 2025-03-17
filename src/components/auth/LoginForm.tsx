@@ -26,9 +26,9 @@ export function LoginForm() {
       // ログイン成功後、トップページにリダイレクト
       console.log("ログイン成功 - トップページへリダイレクト");
       window.location.href = "/";
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('ログインエラー:', error);
-      setError(error.message || 'ログインに失敗しました。');
+      setError(error instanceof Error ? error.message : 'ログインに失敗しました。');
     } finally {
       setLoading(false);
     }

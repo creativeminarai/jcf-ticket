@@ -2,8 +2,6 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import type { Database } from "@/types/database.types";
 
 // TicketTypeテーブルから取得されるデータの型
 type TicketType = {
@@ -16,49 +14,12 @@ type TicketType = {
   updated_at?: string;
 };
 
-const STATUS_MAP = {
-  available: { label: "販売中", className: "bg-green-100 text-green-800" },
-  sold_out: { label: "売り切れ", className: "bg-yellow-100 text-yellow-800" },
-  closed: { label: "販売終了", className: "bg-red-100 text-red-800" },
-} as const;
-
 export function TicketsClient({ 
   initialTickets 
 }: { 
   initialTickets: TicketType[] 
 }) {
-  const [tickets, setTickets] = useState<TicketType[]>(initialTickets);
-  const supabase = createClientComponentClient<Database>();
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("ja-JP", {
-      style: "currency",
-      currency: "JPY",
-    }).format(price);
-  };
-
-  // 現在は使用しないため、コメントアウト
-  /*
-  const handleStatusChange = async (ticketId: string, newStatus: string) => {
-    try {
-      const { error } = await supabase
-        .from("TicketType")
-        .update({ status: newStatus })
-        .eq("id", ticketId);
-
-      if (error) throw error;
-
-      // ローカルの状態を更新
-      setTickets(tickets.map(ticket => 
-        ticket.id === ticketId ? { ...ticket, status: newStatus } : ticket
-      ));
-
-    } catch (error) {
-      console.error("Status update error:", error);
-      alert("ステータスの更新に失敗しました");
-    }
-  };
-  */
+  const [tickets] = useState<TicketType[]>(initialTickets);
 
   return (
     <div>

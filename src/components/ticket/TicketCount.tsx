@@ -2,11 +2,10 @@ import Image from "next/image";
 
 type TicketCountProps = {
   count?: number;
-  eventId?: string;
   onPurchase?: () => void;
 };
 
-export function TicketCount({ count = 2, eventId, onPurchase }: TicketCountProps) {
+export function TicketCount({ count = 2, onPurchase }: TicketCountProps) {
   return (
     <section className="bg-white overflow-hidden shadow-lg rounded-lg p-6">
       <h2 className="text-lg font-semibold text-gray-900 mb-4 pb-3 border-b border-gray-200">

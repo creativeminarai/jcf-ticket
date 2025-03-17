@@ -41,7 +41,7 @@ export default async function EventsPage() {
         // イベントを開催日初日の昇順でソート
         data.sort((a, b) => {
           // 各イベントの開始日を取得
-          const getStartDate = (event: any) => {
+          const getStartDate = (event: { EventDate?: { date: string; time: string }[] }) => {
             if (!event.EventDate || event.EventDate.length === 0) {
               return new Date(8640000000000000); // 遠い未来の日付（日付不明の場合は最後に表示）
             }

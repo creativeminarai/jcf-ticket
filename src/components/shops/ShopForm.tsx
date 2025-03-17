@@ -81,20 +81,6 @@ function parseShopCode(shopCode: string) {
   };
 }
 
-// 店舗コードを生成する関数
-function generateShopCode(shopNumber: string, attendanceDates: string[]): string {
-  // 073 (プレフィックス)
-  const prefix = '073';
-  
-  // c0016 (店舗番号部分)
-  // 数字のみの入力を「c」+ゼロ埋めした4桁の数字に変換
-  const paddedNumber = shopNumber.padStart(4, '0');
-  const shopNumberPart = 'c' + paddedNumber;
-  
-  // 新しい形式: 073-c0016
-  return `${prefix}-${shopNumberPart}`;
-}
-
 export default function ShopForm({ shop, event: initialEvent, events, onSubmit, isLoading = false }: ShopFormProps) {
   const [selectedEventId, setSelectedEventId] = useState<string>(initialEvent?.id || "");
   // 初期値として関数を使用して、nullやundefinedを適切に処理する

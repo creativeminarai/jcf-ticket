@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { formatPrice } from "@/lib/stripe";
 import Link from "next/link";
 import Image from "next/image";
 

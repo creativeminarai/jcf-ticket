@@ -84,9 +84,6 @@ const coffeeShops: Shop[] = [
   }
 ];
 
-// デフォルトのダミーショップ（未使用）
-const dummyShop: Shop = coffeeShops[0];
-
 // 注意: このダミーデータは新しいSupabase実装では使用しません
 const dummyEvents = [
   {

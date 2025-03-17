@@ -2,11 +2,9 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import type { Database } from "@/types/database.types";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { UserAuthMenu } from "@/components/nav/UserAuthMenu";
 import { useAuth } from "@/contexts/AuthContext";
-import { getStripe } from "@/lib/stripe";
 import Link from "next/link";
 
 interface EventDate {

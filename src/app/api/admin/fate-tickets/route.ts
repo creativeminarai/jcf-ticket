@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { Database } from "@/types/database.types";
 
 // リクエストの型定義
 type GetFateTicketsRequest = {

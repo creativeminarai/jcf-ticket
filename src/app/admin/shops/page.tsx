@@ -1,5 +1,4 @@
 import { ShopsClient } from "./ShopsClient";
-import type { Database } from "@/types/database.types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Event } from "@/types/shop";
 

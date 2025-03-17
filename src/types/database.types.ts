@@ -134,3 +134,12 @@ export type Database = {
     };
   };
 };
+
+// イベントと日付情報を含む拡張型
+export type EventWithDates = Database['public']['Tables']['Event']['Row'] & {
+  status?: 'draft' | 'published' | 'closed';
+  dates?: Array<{
+    date: string;
+    time: string;
+  }>;
+};
